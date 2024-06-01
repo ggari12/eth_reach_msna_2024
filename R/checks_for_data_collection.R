@@ -133,7 +133,6 @@ df_logic_c_enumerator_id_harmonization <- df_tool_data |>
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_enumerator_id_harmonization")
 
 # Time checks -----------------------------------------------------------------
-
 # Time interval for the survey
 min_time_of_survey <- 25
 max_time_of_survey <- 120
@@ -184,6 +183,27 @@ df_repeat_others_data <- supporteR::extract_other_specify_data_repeats(input_rep
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data")
 
 # logical checks --------------------------------------------------------------
+# If "hh_size" = 1 and response to relation to household head "relation_to_hoh" is not "spouse_hohh"
+df_relation_to_hoh <- df_tool_data %>% 
+  filter(!hoh_relationship %in% c("spouse_hohh") , hh_size == 1) %>%
+  mutate(i.check.type = "change_response",
+         i.check.name = "hoh_relationship",
+         i.check.current_value = hoh_relationship,
+         i.check.value = "",
+         i.check.issue_id = "logic_c_relation_to_hoh_mismatch",
+         i.check.issue = glue("relation_to_hoh: {hoh_relationship}, but hh_size is: {hh_size}"),
+         i.check.other_text = "",
+         i.check.checked_by = "",
+         i.check.checked_date = as_date(today()),
+         i.check.comment = "Response to change to 'spouse_hohh' since respondent lives alone", 
+         i.check.reviewed = "",
+         i.check.adjust_log = "",
+         i.check.so_sm_choices = "") %>% 
+  dplyr::select(starts_with("i.check")) %>% 
+  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
+
+add_checks_data_to_list(input_list_name = "logic_output", input_df_name = "df_relation_to_hoh")
+
 # Household size seems to be unusually low (below 2) or high (above 8); survey needs to be checked
 df_logic_c_hh_size_seems_unusal <- df_tool_data |> 
   filter(hh_size <= 2 | hh_size > 8) |> 
@@ -314,11 +334,11 @@ df_fd_consumption_score_same <- df_tool_data |>
   mutate(i.check.type = "change_response",
          i.check.name = "fsl_fcs_cereal",
          i.check.current_value = as.character(fsl_fcs_cereal),
-         i.check.value = "NA",
+         i.check.value = "",
          i.check.issue_id = "logic_c_fd_consumption_score_same",
          i.check.issue = glue("fsl_fcs_cereal:{fsl_fcs_cereal}, fsl_fcs_legumes:{fsl_fcs_legumes}, fsl_fcs_veg:{fsl_fcs_veg}, fsl_fcs_fruit:{fsl_fcs_fruit}, fsl_fcs_condiments:{fsl_fcs_condiments}, fsl_fcs_meat:{fsl_fcs_meat}, fsl_fcs_dairy:{fsl_fcs_dairy}, fsl_fcs_sugar:{fsl_fcs_sugar}, fsl_fcs_oil:{fsl_fcs_oil}"),
          i.check.other_text = "",
-         i.check.checked_by = "GG",
+         i.check.checked_by = "",
          i.check.checked_date = as_date(today()),
          i.check.comment = "", 
          i.check.reviewed = "",
@@ -361,7 +381,7 @@ df_fd_rcsi_same <- df_tool_data |>
          i.check.issue_id = "logic_c_fd_rcsi_same",
          i.check.issue = glue("fsl_rcsi_lessquality :{fsl_rcsi_lessquality}, fsl_rcsi_mealsize :{fsl_rcsi_mealsize}, fsl_rcsi_mealadult :{fsl_rcsi_mealadult}, fsl_rcsi_mealnb :{fsl_rcsi_mealnb}, fsl_rcsi_borrow :{fsl_rcsi_borrow}"),
          i.check.other_text = "",
-         i.check.checked_by = "GG",
+         i.check.checked_by = "",
          i.check.checked_date = as_date(today()),
          i.check.comment = "", 
          i.check.reviewed = "",
@@ -674,11 +694,11 @@ df_logic_c_fcs_and_hhs_mismatch <- df_tool_data |>
   mutate(i.check.type = "change_response",
          i.check.name = "fsl_fcs_cereal",
          i.check.current_value = as.character(fsl_fcs_cereal),
-         i.check.value = "NA",
+         i.check.value = "",
          i.check.issue_id = "logic_c_mismatch_btn_fcs_and_hhs",
          i.check.issue = "mismatch between FCS and HHS",
          i.check.other_text = "",
-         i.check.checked_by = "GG",
+         i.check.checked_by = "",
          i.check.checked_date = as_date(today()),
          i.check.comment = "",
          i.check.reviewed = "1",
@@ -1138,8 +1158,7 @@ df_logic_c_lcsi_no_stress4_but_emergency2_c5 <- df_tool_data |>
          i.check.adjust_log = "",
          i.check.so_sm_choices = "") |> 
   filter(!is.na(i.check.current_value)) |> 
-  supporteR::batch_select_rename(input_selection_str = "i.check.", input_replacement_str = "")  |> 
-  mutate(hh_kebele = as.character(hh_kebele))
+  supporteR::batch_select_rename(input_selection_str = "i.check.", input_replacement_str = "")  
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_lcsi_no_stress4_but_emergency2_c5")
   
@@ -1230,6 +1249,30 @@ df_logic_c_lcsi_no_livestock_but_emergency2_c8 <- df_tool_data |>
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_lcsi_no_livestock_but_emergency2_c8")
 
 # log 999
+cols_with_integer_values <- df_survey |> filter(type %in% c("integer")) |> pull(name)
+
+df_999_data <- purrr::map_dfr(.x = cols_with_integer_values, 
+                              .f = ~ {df_tool_data |> 
+                                  dplyr::filter(str_detect(string = !!sym(.x), pattern = "^-[9]{2,4}$|^[9]{2,4}$")) |> 
+                                  dplyr::mutate(i.check.type = "change_response",
+                                                i.check.name = .x,
+                                                i.check.current_value = as.character(!!sym(.x)),
+                                                i.check.value = "",
+                                                i.check.issue_id = "logic_c_handle_999",
+                                                i.check.issue = "remove 999 added during data collection",
+                                                i.check.other_text = "",
+                                                i.check.checked_by = "",
+                                                i.check.checked_date = as_date(today()),
+                                                i.check.comment = "",
+                                                i.check.reviewed = "",
+                                                i.check.adjust_log = "",
+                                                i.check.so_sm_choices = "") |>
+                                  dplyr::select(starts_with("i.check."))}) |> 
+  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_999_data")
+
+# log 999
 cols_with_text_values <- df_survey |> filter(type %in% c("text"), name %in% colnames(df_tool_data)) |> pull(name)
 
 df_999_data_other <- purrr::map_dfr(.x = cols_with_text_values, 
@@ -1238,14 +1281,14 @@ df_999_data_other <- purrr::map_dfr(.x = cols_with_text_values,
                                         dplyr::mutate(i.check.type = "change_response",
                                                       i.check.name = .x,
                                                       i.check.current_value = as.character(!!sym(.x)),
-                                                      i.check.value = "NA",
+                                                      i.check.value = "",
                                                       i.check.issue_id = "logic_c_handle_999_other",
                                                       i.check.issue = "remove 999 added during data collection",
                                                       i.check.other_text = "",
-                                                      i.check.checked_by = "GG",
+                                                      i.check.checked_by = "",
                                                       i.check.checked_date = as_date(today()),
                                                       i.check.comment = "",
-                                                      i.check.reviewed = "1",
+                                                      i.check.reviewed = "",
                                                       i.check.adjust_log = "",
                                                       i.check.so_sm_choices = "") |>
                                         dplyr::select(starts_with("i.check."))}) |> 
