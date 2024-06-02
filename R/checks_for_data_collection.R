@@ -1,5 +1,4 @@
 ###############################################################################
-
 # checks for data collection
 # read packages
 library(tidyverse)
@@ -247,7 +246,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 
 # HH reports 'sell more livestock than usual', but reports not owning any livestock
 df_logic_c_sell_livestock_but_not_owning_any_livestock <- df_tool_data |> 
-  filter(fsl_lcsi_en_crisis1 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "no")) |> 
+  filter(fsl_lcsi_en_crisis1 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "none")) |> 
   mutate(i.check.type = "change_response",
          i.check.name = "fsl_lcsi_en_crisis1",
          i.check.current_value = fsl_lcsi_en_crisis1,
@@ -267,7 +266,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 
 # HH reports 'sell the last female animal', but reports not owning any livestock
 df_logic_c_sell_female_animal_but_not_owning_any_livestock <- df_tool_data |> 
-  filter(fsl_lcsi_en_emergency1 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "no")) |> 
+  filter(fsl_lcsi_en_emergency1 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "none")) |> 
   mutate(i.check.type = "change_response",
          i.check.name = "fsl_lcsi_en_emergency1",
          i.check.current_value = fsl_lcsi_en_emergency1,
@@ -701,7 +700,7 @@ df_logic_c_fcs_and_hhs_mismatch <- df_tool_data |>
          i.check.checked_by = "",
          i.check.checked_date = as_date(today()),
          i.check.comment = "",
-         i.check.reviewed = "1",
+         i.check.reviewed = "",
          i.check.adjust_log = "",
          i.check.so_sm_choices = "") |>
   slice(rep(1:n(), each = 15)) |> 
@@ -1252,7 +1251,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 cols_with_integer_values <- df_survey |> filter(type %in% c("integer")) |> pull(name)
 
 df_999_data <- purrr::map_dfr(.x = cols_with_integer_values, 
-                              .f = ~ {df_tool_data |> 
+                              .f = ~ {df_raw_data_loop_roster |> 
                                   dplyr::filter(str_detect(string = !!sym(.x), pattern = "^-[9]{2,4}$|^[9]{2,4}$")) |> 
                                   dplyr::mutate(i.check.type = "change_response",
                                                 i.check.name = .x,
