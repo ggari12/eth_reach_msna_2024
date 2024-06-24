@@ -56,8 +56,28 @@ df_raw_data_loop_edu_ind <- df_tool_data |>
   select(-`_index`) |> 
   inner_join(loop_edu_ind, by = c("_uuid" = "_submission__uuid"))
 
-# tool
+# loop_hazard_concern_rep
+loop_hazard_concern_rep <- readxl::read_excel(path = data_path, sheet = "hazard_concern_rep")
 
+df_raw_data_loop_hazard_concern_rep <- df_tool_data |> 
+  select(-`_index`) |> 
+  inner_join(loop_hazard_concern_rep, by = c("_uuid" = "_submission__uuid"))
+
+# loop_hazard_type_rep
+loop_hazard_type_rep <- readxl::read_excel(path = data_path, sheet = "hazard_type_rep")
+
+df_raw_data_loop_hazard_type_rep <- df_tool_data |> 
+  select(-`_index`) |> 
+  inner_join(loop_hazard_type_rep, by = c("_uuid" = "_submission__uuid"))
+
+# loop_nut_ind
+loop_nut_ind <- readxl::read_excel(path = data_path, sheet = "nut_ind")
+
+df_raw_data_loop_nut_ind <- df_tool_data |> 
+  select(-`_index`) |> 
+  inner_join(loop_nut_ind, by = c("_uuid" = "_submission__uuid"))
+
+# tool
 loc_tool <- "inputs/ETH2403_MSNA_2024_tool.xlsx"
 df_survey <- readxl::read_excel(loc_tool, sheet = "survey") 
 df_choices <- readxl::read_excel(loc_tool, sheet = "choices")
@@ -67,7 +87,6 @@ df_choices <- readxl::read_excel(loc_tool, sheet = "choices")
 checks_output <- list()
 
 # testing data ----------------------------------------------------------------
-
 df_testing_data <- df_tool_data |> 
   filter(i.check.start_date < as_date("2024-05-24")) |> 
   mutate(i.check.type = "remove_survey",
@@ -88,8 +107,7 @@ df_testing_data <- df_tool_data |>
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_testing_data")
 
-# no consent --------------------------------------------------------------
-
+# no consent ------------------------------------------------------------------
 df_no_consent <- df_tool_data |> 
   filter(consent == "no") |> 
   mutate(i.check.type = "remove_survey",
@@ -110,30 +128,9 @@ df_no_consent <- df_tool_data |>
 
 add_checks_data_to_list(input_list_name = "logic_output", input_df_name = "df_no_consent")
 
-# fix enumerator_id data ------------------------------------------------------
-
-df_logic_c_enumerator_id_harmonization <- df_tool_data |> 
-  filter(is.na(enumerator_id), i.check.start_date > as_date("2024-05-24")) |> 
-  mutate(i.check.type = "change_response",
-         i.check.name = "enumerator_id",
-         i.check.current_value = "NA",
-         i.check.value = enumerator_id,
-         i.check.issue_id = "logic_c_enumerator_id_harmonization",
-         i.check.issue = "enumerator_id_harmonization",
-         i.check.other_text = "",
-         i.check.checked_by = "GG",
-         i.check.checked_date = as_date(today()),
-         i.check.comment = "", 
-         i.check.reviewed = "1",
-         i.check.adjust_log = "",
-         i.check.so_sm_choices = "") |> 
-  supporteR::batch_select_rename(input_selection_str = "i.check.", input_replacement_str = "") 
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_enumerator_id_harmonization")
-
 # Time checks -----------------------------------------------------------------
 # Time interval for the survey
-min_time_of_survey <- 25
+min_time_of_survey <- 35
 max_time_of_survey <- 120
 
 df_c_survey_time <-  supporteR::check_survey_time(input_tool_data = df_tool_data, 
@@ -143,6 +140,15 @@ df_c_survey_time <-  supporteR::check_survey_time(input_tool_data = df_tool_data
                                                   input_max_time = max_time_of_survey) 
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_c_survey_time")
+
+# check time between surveys
+time_between_surveys <-  check_time_interval_btn_surveys(
+  input_tool_data = df_tool_data,
+  input_enumerator_id_col = "enumerator_id",
+  input_location_col= "admin4",
+  input_min_time = 5)
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "time_between_surveys")
 
 # check duplicate uuids -------------------------------------------------------
 
@@ -160,7 +166,9 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_c
 
 # other_specify ---------------------------------------------------------------
 
-df_others_data <- supporteR::extract_other_specify_data(input_tool_data = df_tool_data |> select(-snfi_shelter_damagel_other), 
+df_others_data <- supporteR::extract_other_specify_data(input_tool_data = df_tool_data |> select(-fsl_lcsi_na_other,
+                                                                                                     -fsl_lcsi_other,
+                                                                                                     -fsl_lcsi_disp_other),
                                                         input_enumerator_id_col = "enumerator_id",
                                                         input_location_col = "admin4",
                                                         input_survey = df_survey,  
@@ -176,10 +184,49 @@ df_repeat_others_data <- supporteR::extract_other_specify_data_repeats(input_rep
                                                                        input_survey = df_survey, 
                                                                        input_choices = df_choices, 
                                                                        input_sheet_name = "health_ind", 
-                                                                       input_repeat_cols = c("health_ind_healthcare_needed_type", "health_healthcare_paying_service",
-                                                                                             "health_barriers_unmet", "health_barriers_met", "health_barriers_no_need")) 
+                                                                       input_repeat_cols = "health_ind_healthcare_needed_type") 
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data")
+
+df_repeat_others_data2 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_edu_ind |> mutate(`_index.y` = `_index`), 
+                                                                       input_enumerator_id_col = "enumerator_id", 
+                                                                       input_location_col = "admin4", 
+                                                                       input_survey = df_survey, 
+                                                                       input_choices = df_choices, 
+                                                                       input_sheet_name = "edu_ind", 
+                                                                       input_repeat_cols = "edu_barrier") 
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data2")
+
+df_repeat_others_data3 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_hazard_concern_rep |> mutate(`_index.y` = `_index`), 
+                                                                        input_enumerator_id_col = "enumerator_id", 
+                                                                        input_location_col = "admin4", 
+                                                                        input_survey = df_survey, 
+                                                                        input_choices = df_choices, 
+                                                                        input_sheet_name = "hazard_concern_rep", 
+                                                                        input_repeat_cols = "hazard_concern_impact") 
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data3")
+
+df_repeat_others_data4 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_hazard_type_rep |> mutate(`_index.y` = `_index`), 
+                                                                        input_enumerator_id_col = "enumerator_id", 
+                                                                        input_location_col = "admin4", 
+                                                                        input_survey = df_survey, 
+                                                                        input_choices = df_choices, 
+                                                                        input_sheet_name = "hazard_type_rep", 
+                                                                        input_repeat_cols = "hazard_impact") 
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data4")
+
+df_repeat_others_data5 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_nut_ind |> mutate(`_index.y` = `_index`), 
+                                                                        input_enumerator_id_col = "enumerator_id", 
+                                                                        input_location_col = "admin4", 
+                                                                        input_survey = df_survey, 
+                                                                        input_choices = df_choices, 
+                                                                        input_sheet_name = "nut_ind", 
+                                                                        input_repeat_cols = c("nut_ind_under5_sick_symptoms", "nut_ind_under5_sick_location")) 
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data5")
 
 # logical checks --------------------------------------------------------------
 # If "hh_size" = 1 and response to relation to household head "relation_to_hoh" is not "spouse_hohh"
@@ -243,6 +290,26 @@ df_logic_c_hoh_age_seems_too_high <- df_tool_data |>
   batch_select_rename() 
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hoh_age_seems_too_high")
+
+# The household reports its own production as a source of food but does not report income from its own production. 
+df_logic_c_hh_food_source_own_production_but_not_report_income_from_its_own_production <- df_tool_data |> 
+  filter(fsl_source_food %in%  c("own_production"), cm_income_source != c("own_production")) |> 
+  mutate(i.check.type = "change_response",
+         i.check.name = "fsl_source_food",
+         i.check.current_value = fsl_source_food,
+         i.check.value = "",
+         i.check.issue_id = "hh_food_source_own_production_but_not_report_income_from_its_own_production",
+         i.check.issue = glue("fsl_source_foods: {fsl_source_food} but hh_not_own_livestock: {cm_assets_ownership_agriculture}"),
+         i.check.other_text = "",
+         i.check.checked_by = "",
+         i.check.checked_date = as_date(today()),
+         i.check.comment = "", 
+         i.check.reviewed = "",
+         i.check.adjust_log = "",
+         i.check.so_sm_choices = "")  |> 
+  batch_select_rename() 
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_own_production_food_source_but_not_report_income_from_its_own_production")
 
 # HH reports 'sell more livestock than usual', but reports not owning any livestock
 df_logic_c_sell_livestock_but_not_owning_any_livestock <- df_tool_data |> 
@@ -405,24 +472,24 @@ df_fd_rcsi_same <- df_tool_data |>
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_fd_rcsi_same")
 
 # HH take short time to access the nearest health facility but report barriers:"Health facility is too far away"
-df_logic_c_hh_report_short_time_but_health_facility_far_away <- df_raw_data_loop_health_ind |> 
-  filter(health_barriers_unmet %in% c("health_fac_far"), health_facility_time < 30) |>
-  mutate(i.check.type = "change_response",
-         i.check.name = "health_barriers_unmet",
-         i.check.current_value = health_barriers_unmet,
-         i.check.value = "",
-         i.check.issue_id = "hh_report_short_time_but_health_facility_far_away",
-         i.check.issue = glue("healthcare barriers: {health_barriers_unmet} but health_facility_distance: {health_facility_time}"),
-         i.check.other_text = "",
-         i.check.checked_by = "",
-         i.check.checked_date = as_date(today()),
-         i.check.comment = "", 
-         i.check.reviewed = "",
-         i.check.adjust_log = "",
-         i.check.so_sm_choices = "")  |> 
-  batch_select_rename()
+#df_logic_c_hh_report_short_time_but_health_facility_far_away <- df_raw_data_loop_health_ind |> 
+#  filter(health_barriers_unmet %in% c("health_fac_far"), health_facility_time < 30) |>
+#  mutate(i.check.type = "change_response",
+#         i.check.name = "health_barriers_unmet",
+#         i.check.current_value = health_barriers_unmet,
+#         i.check.value = "",
+#         i.check.issue_id = "hh_report_short_time_but_health_facility_far_away",
+#         i.check.issue = glue("healthcare barriers: {health_barriers_unmet} but health_facility_distance: {health_facility_time}"),
+#         i.check.other_text = "",
+#         i.check.checked_by = "",
+#         i.check.checked_date = as_date(today()),
+#         i.check.comment = "", 
+#         i.check.reviewed = "",
+#         i.check.adjust_log = "",
+#         i.check.so_sm_choices = "")  |> 
+#  batch_select_rename()
 
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_report_short_time_but_health_facility_far_away")
+#add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_report_short_time_but_health_facility_far_away")
 
 # check FSL -------------------------------------------------------------------
 # check_FCS_high_HHS_high
