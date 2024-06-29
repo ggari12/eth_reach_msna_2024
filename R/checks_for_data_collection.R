@@ -15,9 +15,11 @@ data_path <- "inputs/ETH2403_MSNA_2024_data.xlsx"
 df_tool_data <- readxl::read_excel(data_path) |>  
   mutate(start = as_datetime(start),
          end = as_datetime(end),
+         `_geopoint_latitude` = as.numeric(household_geopoint_latitude),
+         `_geopoint_longitude` = as.numeric(household_geopoint_longitude),
          enumerator_id = ifelse(is.na(enum_id), enum_id, enum_id)) |> 
   checks_add_extra_cols(input_enumerator_id_col = "enumerator_id",
-                        input_location_col = "admin4") |> 
+                        input_location_col = "cluster_id") |> 
   
   create_composite_indicators() |> 
   rowwise() |> 
@@ -39,48 +41,50 @@ df_tool_data <- readxl::read_excel(data_path) |>
 loop_roster <- readxl::read_excel(path = data_path, sheet = "roster")
 
 df_raw_data_loop_roster <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_roster, by = c("_uuid" = "_submission__uuid"))
+  #select(-`_index`) |> 
+  inner_join(loop_roster, by = c("_index" = "_parent_index"))
 
 # loop_health_ind
 loop_health_ind <- readxl::read_excel(path = data_path, sheet = "health_ind")
 
 df_raw_data_loop_health_ind <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_health_ind, by = c("_uuid" = "_submission__uuid"))
+  #select(-`_index`) |> 
+  inner_join(loop_health_ind, by = c("_index" = "_parent_index"))
 
 # loop_education_ind
 loop_edu_ind <- readxl::read_excel(path = data_path, sheet = "edu_ind")
 
 df_raw_data_loop_edu_ind <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_edu_ind, by = c("_uuid" = "_submission__uuid"))
+  #select(-`_index`) |> 
+  inner_join(loop_edu_ind, by = c("_index" = "_parent_index"))
 
 # loop_hazard_concern_rep
 loop_hazard_concern_rep <- readxl::read_excel(path = data_path, sheet = "hazard_concern_rep")
 
 df_raw_data_loop_hazard_concern_rep <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_hazard_concern_rep, by = c("_uuid" = "_submission__uuid"))
+  #select(-`_index`) |> 
+  inner_join(loop_hazard_concern_rep, by = c("_index" = "_parent_index"))
 
 # loop_hazard_type_rep
 loop_hazard_type_rep <- readxl::read_excel(path = data_path, sheet = "hazard_type_rep")
 
 df_raw_data_loop_hazard_type_rep <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_hazard_type_rep, by = c("_uuid" = "_submission__uuid"))
+  #select(-`_index`) |> 
+  inner_join(loop_hazard_type_rep, by = c("_index" = "_parent_index"))
 
 # loop_nut_ind
 loop_nut_ind <- readxl::read_excel(path = data_path, sheet = "nut_ind")
 
 df_raw_data_loop_nut_ind <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_nut_ind, by = c("_uuid" = "_submission__uuid"))
+  #select(-`_index`) |> 
+  inner_join(loop_nut_ind, by = c("_index" = "_parent_index"))
 
 # tool
 loc_tool <- "inputs/ETH2403_MSNA_2024_tool.xlsx"
 df_survey <- readxl::read_excel(loc_tool, sheet = "survey") 
 df_choices <- readxl::read_excel(loc_tool, sheet = "choices")
+
+df_sample_data <- sf::st_read("inputs/msna_samples.gpkg", quiet = TRUE)
 
 # checks ----------------------------------------------------------------------
 
@@ -88,7 +92,7 @@ checks_output <- list()
 
 # testing data ----------------------------------------------------------------
 df_testing_data <- df_tool_data |> 
-  filter(i.check.start_date < as_date("2024-05-24")) |> 
+  filter(i.check.start_date < as_date("2024-06-25")) |> 
   mutate(i.check.type = "remove_survey",
          i.check.name = "",
          i.check.current_value = "",
@@ -135,7 +139,7 @@ max_time_of_survey <- 120
 
 df_c_survey_time <-  supporteR::check_survey_time(input_tool_data = df_tool_data, 
                                                   input_enumerator_id_col = "enumerator_id",
-                                                  input_location_col = "admin4",
+                                                  input_location_col = "cluster_id",
                                                   input_min_time = min_time_of_survey, 
                                                   input_max_time = max_time_of_survey) 
 
@@ -145,7 +149,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_c
 time_between_surveys <-  check_time_interval_btn_surveys(
   input_tool_data = df_tool_data,
   input_enumerator_id_col = "enumerator_id",
-  input_location_col= "admin4",
+  input_location_col= "cluster_id",
   input_min_time = 5)
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "time_between_surveys")
@@ -160,7 +164,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_c
 
 df_c_outliers <- supporteR::check_outliers_cleaninginspector(input_tool_data = df_tool_data,
                                                              input_enumerator_id_col = "enumerator_id",
-                                                             input_location_col = "admin4") 
+                                                             input_location_col = "cluster_id") 
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_c_outliers")
 
@@ -170,7 +174,7 @@ df_others_data <- supporteR::extract_other_specify_data(input_tool_data = df_too
                                                                                                      -fsl_lcsi_other,
                                                                                                      -fsl_lcsi_disp_other),
                                                         input_enumerator_id_col = "enumerator_id",
-                                                        input_location_col = "admin4",
+                                                        input_location_col = "cluster_id",
                                                         input_survey = df_survey,  
                                                         input_choices = df_choices) 
 
@@ -180,7 +184,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_o
 
 df_repeat_others_data <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_health_ind |> mutate(`_index.y` = `_index`), 
                                                                        input_enumerator_id_col = "enumerator_id", 
-                                                                       input_location_col = "admin4", 
+                                                                       input_location_col = "cluster_id", 
                                                                        input_survey = df_survey, 
                                                                        input_choices = df_choices, 
                                                                        input_sheet_name = "health_ind", 
@@ -190,7 +194,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_r
 
 df_repeat_others_data2 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_edu_ind |> mutate(`_index.y` = `_index`), 
                                                                        input_enumerator_id_col = "enumerator_id", 
-                                                                       input_location_col = "admin4", 
+                                                                       input_location_col = "cluster_id", 
                                                                        input_survey = df_survey, 
                                                                        input_choices = df_choices, 
                                                                        input_sheet_name = "edu_ind", 
@@ -200,7 +204,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_r
 
 df_repeat_others_data3 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_hazard_concern_rep |> mutate(`_index.y` = `_index`), 
                                                                         input_enumerator_id_col = "enumerator_id", 
-                                                                        input_location_col = "admin4", 
+                                                                        input_location_col = "cluster_id", 
                                                                         input_survey = df_survey, 
                                                                         input_choices = df_choices, 
                                                                         input_sheet_name = "hazard_concern_rep", 
@@ -210,7 +214,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_r
 
 df_repeat_others_data4 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_hazard_type_rep |> mutate(`_index.y` = `_index`), 
                                                                         input_enumerator_id_col = "enumerator_id", 
-                                                                        input_location_col = "admin4", 
+                                                                        input_location_col = "cluster_id", 
                                                                         input_survey = df_survey, 
                                                                         input_choices = df_choices, 
                                                                         input_sheet_name = "hazard_type_rep", 
@@ -218,15 +222,63 @@ df_repeat_others_data4 <- supporteR::extract_other_specify_data_repeats(input_re
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data4")
 
-df_repeat_others_data5 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_nut_ind |> mutate(`_index.y` = `_index`), 
+df_repeat_others_data5 <- supporteR::extract_other_specify_data_repeats(input_repeat_data = df_raw_data_loop_nut_ind |> select(-nut_ind_under5_sick_location_gov_other,
+                                                                                                                               -nut_ind_under5_sick_location_ngo_other,
+                                                                                                                               -nut_ind_under5_sick_location_private_other) |> 
+                                                                          mutate(`_index.y` = `_index`), 
                                                                         input_enumerator_id_col = "enumerator_id", 
-                                                                        input_location_col = "admin4", 
+                                                                        input_location_col = "cluster_id", 
                                                                         input_survey = df_survey, 
                                                                         input_choices = df_choices, 
                                                                         input_sheet_name = "nut_ind", 
                                                                         input_repeat_cols = c("nut_ind_under5_sick_symptoms", "nut_ind_under5_sick_location")) 
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_repeat_others_data5")
+
+# spatial checks --------------------------------------------------------------
+
+if("status" %in% colnames(df_sample_data)){
+  sample_pt_nos <- df_sample_data %>%
+    mutate(unique_pt_number = paste0(status, "_", Name)) %>%
+    pull(unique_pt_number) %>%
+    unique()
+}else{
+  sample_pt_nos <- df_sample_data %>%
+    mutate(unique_pt_number = Name) %>%
+    pull(unique_pt_number) %>%
+    unique()
+}
+
+# duplicate point numbers
+df_duplicate_pt_nos <- check_duplicate_pt_numbers(input_tool_data = df_tool_data,
+                                                  input_enumerator_id_col = "enumerator_id",
+                                                  input_location_col = "cluster_id",
+                                                  input_point_id_col = "point_number",
+                                                  input_sample_pt_nos_list = sample_pt_nos)
+
+add_checks_data_to_list(input_list_name = "checks", input_df_name = "df_duplicate_pt_nos")
+
+# point number does not exist in sample
+
+df_pt_number_not_in_sample <- check_pt_number_not_in_samples(input_tool_data = df_tool_data,
+                                                             input_enumerator_id_col = "enumerator_id",
+                                                             input_location_col = "cluster_id",
+                                                             input_point_id_col = "point_number",
+                                                             input_sample_pt_nos_list = sample_pt_nos)
+
+add_checks_data_to_list(input_list_name = "checks", input_df_name = "df_pt_number_not_in_sample")
+
+# check for exceeded threshold distance
+
+df_greater_thresh_distance <- check_threshold_distance(input_sample_data = df_sample_data,
+                                                       input_tool_data = df_tool_data %>% filter(!is.na(`_geopoint_longitude`)),
+                                                       input_enumerator_id_col = "enumerator_id",
+                                                       input_location_col = "cluster_id",
+                                                       input_point_id_col = "point_number",
+                                                       input_threshold_dist = 150,
+                                                       input_geopoint_col = "geopoint")
+
+add_checks_data_to_list(input_list_name = "checks", input_df_name = "df_greater_thresh_distance")
 
 # logical checks --------------------------------------------------------------
 # If "hh_size" = 1 and response to relation to household head "relation_to_hoh" is not "spouse_hohh"
@@ -1364,7 +1416,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_9
 
 # combined  checks ------------------------------------------------------------
 
-df_combined_checks <- bind_rows(checks_output)
+df_combined_checks <- bind_rows(checks_output) 
 
 # output the log --------------------------------------------------------------
 
