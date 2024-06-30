@@ -1,6 +1,6 @@
 ---
 title: "ETH MSNA 2024: Data Collection Tracker"
-author: "REACH-Initiates"
+author: "REACH-Initiatives"
 date: "JUNE 2024"
 output:
     html_document:
@@ -270,3 +270,8 @@ df_cl_log |>
                      label = labels_pts,
                      clusterOptions = markerClusterOptions())
 ```
+
+
+## <strong> Feedback </strong>
+
+This report was generated on `r format(Sys.Date(), format = "%B %d, %Y")`. Feedback on improvements to this product can be done through reaching out to: getu.gari@reach-initiatives.org
