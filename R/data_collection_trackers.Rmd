@@ -10,7 +10,13 @@ toc_float:
 smooth_scroll: false
 knit: (function(inputFile, encoding) {rmarkdown::render(inputFile, encoding = encoding, output_file = paste0(dirname(inputFile), '/eth_msna_2024_data_collection_tracker_', format(Sys.Date(), '%Y_%m_%d'),'.html')) })
 ---
-    
+
+```{r logo, echo=FALSE}
+htmltools::img(src = knitr::image_uri("../support_files/Logo_Reach_RGB_1.png"),
+               alt = "REACH logo",
+               style = 'position:absolute; top:-1; right:0; padding:0; margin:20; width:250px')
+```
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 # read packages
@@ -159,7 +165,7 @@ df_updated_tool_data |>
   mutate(admin4 = as.character(admin4)) |> 
   left_join(df_zone_to_kebele_info, by = c("admin4" = "code")) |> 
   relocate(c(zone, woreda, kebele), .before = number_of_surveys) |>
-  select(-admin4) |> 
+  select(-c(zone, admin4)) |> 
   dt_options_fewcols()
 ```
 
