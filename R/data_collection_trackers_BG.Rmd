@@ -1,0 +1,330 @@
+---
+title: "ETH MSNA 2024: BG Data Collection Tracker"
+author: "REACH-Initiatives"
+date: "JUNE 2024"
+output:
+    html_document:
+    toc: true
+toc_float:
+    collapsed: false
+smooth_scroll: false
+knit: (function(inputFile, encoding) {rmarkdown::render(inputFile, encoding = encoding, output_file = paste0(dirname(inputFile), '/BG_MSNA_2024_DC_tracker_', format(Sys.Date(), '%Y_%m_%d'),'.html')) })
+---
+
+```{r logo, echo=FALSE}
+htmltools::img(src = knitr::image_uri("../support_files/Logo_Reach_RGB_1.png"),
+               alt = "REACH logo",
+               style = 'position:absolute; top:-1; right:0; padding:0; margin:20; width:250px')
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
+# read packages
+library(tidyverse)
+library(lubridate)
+library(glue)
+library(htmlwidgets)
+library(supporteR)
+library(leaflet)
+
+# read data
+df_tool_data <- readxl::read_excel("../inputs/ETH2403_MSNA_2024_data.xlsx") |>  
+  mutate(uuid = `_uuid`,
+         start_date = as_date(start),
+         start = as_datetime(start),
+         end = as_datetime(end),
+         latitude = as.numeric(household_geopoint_latitude),
+         longitude = as.numeric(household_geopoint_longitude))
+
+# days that contain data
+df_days_for_data_collection <- df_tool_data |> 
+  select(start_date) |> 
+  unique() |> 
+  arrange(start_date) |> 
+  pull()
+
+# cleaning log handling
+df_data_support_cl_log <- df_tool_data |> 
+  select(uuid, admin2, admin3, admin4, cluster_id, latitude, longitude)
+
+df_cl_log <- read_csv(file = "../inputs/combined_checks_eth_msna_BG.csv") |> 
+  left_join(df_data_support_cl_log |> select(-cluster_id), by = "uuid")
+
+# change_response logs that affect stats in the data collection progress
+cl_log_change_response <- df_cl_log |> 
+  filter(type == "change_response", 
+         !is.na(value),
+         reviewed == 1, 
+         adjust_log != "delete_log", 
+  ) |> 
+  select(uuid, name, value)
+
+# updated tool data
+df_updated_tool_data <- df_tool_data |> 
+  filter(admin1 == "ET06")
+
+# get uuids from cleaning log
+uuids_chg_response <- cl_log_change_response |> pull(uuid) |> unique()
+
+for (current_uuid in uuids_chg_response) {
+  current_uuid_data <- cl_log_change_response |> 
+    filter(uuid == current_uuid) |> 
+    mutate(value = ifelse(name == "enumerator_id", as.numeric(value), value)) |> 
+    pivot_wider(names_from = "name", values_from = "value", uuid)
+  print(current_uuid_data)
+  # process current updates
+  df_current_updated <- df_updated_tool_data |> 
+    rows_update(y = current_uuid_data, by = "uuid")
+  # update the parent dataset with current updates
+  df_updated_tool_data <- df_current_updated
+}
+
+# enumerator performance data
+df_enum_performance <- df_updated_tool_data |> 
+  mutate(int.survey_time_interval = lubridate::time_length(end - start, unit = "min"),
+         int.survey_time_interval = ceiling(int.survey_time_interval))
+
+# surveys for deletion
+df_cl_deletion <- df_cl_log |> 
+  filter(type %in% "remove_survey", reviewed == 1, !adjust_log %in% "delete_log") |>
+  distinct(admin4, uuid)
+
+df_cl_surveys_for_deletion <- df_cl_deletion |>
+  group_by(admin4) |>
+  summarise(surveys_for_deletion = n())
+
+# sample data
+df_host_samples <- readxl::read_excel("../support_files/Kamashi_sample_size.xlsx", sheet = "non_displaced_residents") |> 
+    select(admin4, pop_group, required_samples = tot_sample_size)
+
+df_idps_samples <- readxl::read_excel("../support_files/Kamashi_sample_size.xlsx", sheet = "IDPs") |> 
+    select(admin4, pop_group, required_samples = tot_sample_size)
+
+df_ridps_samples <- readxl::read_excel("../support_files/Kamashi_sample_size.xlsx", sheet = "returning_IDPs")|> 
+    select(admin4, pop_group, required_samples = tot_sample_size)
+
+# tool
+loc_tool <- "../inputs/ETH2403_MSNA_2024_tool.xlsx"
+
+df_survey <- readxl::read_excel(loc_tool, sheet = "survey")
+df_choices <- readxl::read_excel(loc_tool, sheet = "choices") |> 
+  mutate(code = name, label = `label::English`)
+
+# extract location labels
+df_woreda_info <- df_choices |> 
+  filter(list_name %in% c("l_admin3")) |> 
+  select(code, woreda = label)
+df_kebele_info <- df_choices |> 
+  filter(list_name %in% c("l_admin4")) |> 
+  select(code, kebele = label)
+
+# woreda_to_kebele_info
+df_woreda_to_kebele_info <- df_choices |> 
+  filter(list_name %in% c("l_admin4")) |> 
+  select(admin3_code = filter_admin3, code, kebele = label) |> 
+  left_join(df_woreda_info, by = c("admin3_code" = "code")) |>
+  relocate(woreda, .after = admin3_code) |>
+  select(-c(admin3_code))
+
+# functions for changing some options in the table
+dt_options_fewcols <- function(x){
+  DT::datatable(x,
+                rownames = FALSE,
+                options = list(
+                  pageLength = 20,
+                  initComplete = JS(
+                    "function(settings, json) {",
+                    "$(this.api().table().header()).css({'background-color': '#333', 'color': '#fff'});",
+                    "}")
+          )
+  )
+}
+```
+
+## Summary on the surveys done
+
+>Total surveys: **`r df_updated_tool_data %>% filter(admin1 == "ET06") %>% nrow()`**,\
+Surveys for deletion: **`r nrow(df_cl_deletion)`**,\
+Last date of data collection: **`r df_days_for_data_collection[length(df_days_for_data_collection)]`**.
+
+### Summary on the surveys per location by population group
+
+### Non Displaced Residents: **`r df_updated_tool_data %>% filter(pop_group == "non_displaced_residents") %>% nrow()`** surveys
+
+```{r, echo = FALSE}
+df_samp_per_location <- df_host_samples
+df_updated_tool_data |> 
+  filter(pop_group == "non_displaced_residents") |> 
+  group_by(admin4) |> 
+  summarise(number_of_surveys = n()) |> 
+  arrange(admin4) |> 
+  full_join(df_samp_per_location, by = c("admin4" = "admin4")) |>
+  mutate(required_samples = ifelse(is.na(required_samples), 0, required_samples)) |> 
+  left_join(df_cl_surveys_for_deletion, by = "admin4") |> 
+  mutate(number_of_surveys = ifelse(is.na(number_of_surveys), 0, number_of_surveys),
+         surveys_for_deletion = ifelse(is.na(surveys_for_deletion), 0, surveys_for_deletion),
+         int.surveys_and_deletion = number_of_surveys - surveys_for_deletion,
+         remaining_surveys = required_samples - int.surveys_and_deletion ) |> 
+  select(-c(int.surveys_and_deletion, pop_group)) |> 
+  mutate(admin4 = as.character(admin4)) |> 
+  left_join(df_woreda_to_kebele_info, by = c("admin4" = "code")) |> 
+  #relocate(c(woreda, kebele), .before = number_of_surveys) |>
+  #select(-admin4) |> 
+  select(-c(woreda, kebele)) |> 
+  dt_options_fewcols()
+```
+
+### IDPs community: **`r df_updated_tool_data %>% filter(pop_group == "idps") %>% nrow()`** surveys
+
+```{r, echo = FALSE}
+df_samp_per_location <- df_idps_samples
+df_updated_tool_data |> 
+  filter(pop_group == "idps") |> 
+  group_by(admin4) |> 
+  summarise(number_of_surveys = n()) |> 
+  arrange(admin4) |> 
+  full_join(df_samp_per_location, by = c("admin4" = "admin4")) |>
+  mutate(required_samples = ifelse(is.na(required_samples), 0, required_samples)) |> 
+  left_join(df_cl_surveys_for_deletion, by = "admin4") |> 
+  mutate(number_of_surveys = ifelse(is.na(number_of_surveys), 0, number_of_surveys),
+         surveys_for_deletion = ifelse(is.na(surveys_for_deletion), 0, surveys_for_deletion),
+         int.surveys_and_deletion = number_of_surveys - surveys_for_deletion,
+         remaining_surveys = required_samples - int.surveys_and_deletion ) |> 
+  select(-c(int.surveys_and_deletion, pop_group)) |>
+  mutate(admin4 = as.character(admin4)) |> 
+  left_join(df_woreda_to_kebele_info, by = c("admin4" = "code")) |> 
+  #relocate(c(woreda, kebele), .before = number_of_surveys) |>
+  #select(-admin4) |> 
+  select(-c(woreda, kebele)) |> 
+  dt_options_fewcols()
+```
+
+### Returning IDPs community: **`r df_updated_tool_data %>% filter(pop_group == "returning_idps") %>% nrow()`** surveys
+
+```{r, echo = FALSE}
+df_samp_per_location <- df_ridps_samples
+df_updated_tool_data |> 
+  filter(pop_group == "returning_idps") |> 
+  group_by(admin4) |> 
+  summarise(number_of_surveys = n()) |> 
+  arrange(admin4) |> 
+  full_join(df_samp_per_location, by = c("admin4" = "admin4")) |>
+  mutate(required_samples = ifelse(is.na(required_samples), 0, required_samples)) |> 
+  left_join(df_cl_surveys_for_deletion, by = "admin4") |> 
+  mutate(number_of_surveys = ifelse(is.na(number_of_surveys), 0, number_of_surveys),
+         surveys_for_deletion = ifelse(is.na(surveys_for_deletion), 0, surveys_for_deletion),
+         int.surveys_and_deletion = number_of_surveys - surveys_for_deletion,
+         remaining_surveys = required_samples - int.surveys_and_deletion ) |> 
+  select(-c(int.surveys_and_deletion, pop_group)) |> 
+  mutate(admin4 = as.character(admin4)) |> 
+  left_join(df_woreda_to_kebele_info, by = c("admin4" = "code")) |> 
+  #relocate(c(woreda, kebele), .before = number_of_surveys) |>
+  #select(-admin4) |> 
+  select(-c(woreda, kebele)) |> 
+  dt_options_fewcols()
+```
+
+### Daily enumerator performance
+
+The average survey time for all the data is: **`r get_average_survey_time(df_updated_tool_data)`** Minutes
+
+```{r, echo = FALSE}
+df_enum_performance |> 
+  group_by(admin3, admin4, start_date, enum_id) |> 
+  summarise(number_of_interviews_done = n(), `average_survey_time(minutes)` = round(mean(int.survey_time_interval, na.rm = TRUE), 0)) |> 
+  left_join(df_woreda_info, by = c("admin3" = "code")) |> 
+  relocate(woreda, .after = admin3) |>
+  mutate(admin4 = as.character(admin4)) |> 
+  left_join(df_kebele_info, by = c("admin4" = "code")) |> 
+  #relocate(kebele, .after = admin4) |>
+  ungroup() |> 
+  select(-c(admin3, admin4)) |> 
+  dt_options_fewcols()
+```
+
+## Looking into the cleaning log:
+
+### a) Number of issues by issue_id
+
+```{r, echo = FALSE}
+df_cl_log |> 
+  group_by(issue_id) |> 
+  summarise(number_of_issues_by_issue_id = n()) |>
+  # mutate(int.issue_id = str_extract(string = issue_id, pattern = "[0-9]{1,3}")) |> 
+  # left_join(df_logical_check_description, by = c("int.issue_id" = "check_number")) |> 
+  # mutate(issue = ifelse(str_detect(string = issue_id, pattern = "[0-9]{1,3}"), check_description, issue_id)) |> 
+  # select(-c(int.issue_id, check_description))  |> 
+  dt_options_fewcols()
+```
+
+### b) Number of issues by enumerator
+
+```{r, echo = FALSE}
+df_cl_log |> 
+  group_by(enumerator_id) |> 
+  summarise(number_of_issues_by_enum_id = n()) |>
+  dt_options_fewcols()
+```
+
+### c) Number of issues by enumerator and issue_id
+
+```{r, echo = FALSE}
+df_cl_log |> 
+  group_by(enumerator_id, issue_id) |> 
+  summarise(number_of_issues_by_enumerator_and_issue_id = n()) |>
+  # mutate(int.issue_id = str_extract(string = issue_id, pattern = "[0-9]{1,3}")) |> 
+  # left_join(df_logical_check_description, by = c("int.issue_id" = "check_number")) |> 
+  # mutate(issue = ifelse(str_detect(string = issue_id, pattern = "[0-9]{1,3}"), check_description, issue_id)) |> 
+  # select(-c(int.issue_id, check_description))  |> 
+  dt_options_fewcols()
+```
+
+### d) Enumerators with surveys for deletion
+
+```{r, echo = FALSE}
+df_cl_log |> 
+  filter(type %in% c("remove_survey"), reviewed == 1, !adjust_log %in% c("delete_log")) |> 
+  group_by(enumerator_id) |> 
+  summarise(number_of_surveys_for_deletion_by_enumerator = n()) |>
+  dt_options_fewcols()
+```
+
+### e) Map of surveys for deletion
+
+```{r, echo = FALSE, out.width="100%"}
+# popup
+labels_pts <- ~sprintf(
+    "<strong>Issue ID :  <strong>%s</strong><br/>
+      Issue :  <strong>%s</strong><br/>
+      Enumerator ID :  <strong>%s</strong>",
+    issue_id, issue, enumerator_id) |> 
+    lapply(htmltools::HTML)
+
+df_cl_log |> 
+    filter(type == "remove_survey", reviewed == 1, !adjust_log %in% c("delete_log")) |> 
+    group_by(uuid, admin4, latitude, longitude) |> 
+    summarise(start_date = paste(start_date, collapse = " : "),
+              enumerator_id = paste(enumerator_id, collapse = " : "),
+              type = paste(type, collapse = " : "),
+              name = paste(name, collapse = " : "),
+              current_value = paste(current_value, collapse = " : "),
+              value = paste(value, collapse = " : "),
+              issue_id = paste(issue_id, collapse = " : "),
+              issue = paste(issue, collapse = " : ")) |> 
+    unique() |>  
+    leaflet() |> 
+    addTiles() |>
+    addCircleMarkers(~longitude,
+                     ~latitude,
+                     popup = labels_pts,
+                     radius = 10,
+                     color = "red",
+                     stroke = FALSE, fillOpacity = 0.9,
+                     label = labels_pts,
+                     clusterOptions = markerClusterOptions())
+```
+
+
+## <strong> Feedback </strong>
+
+This report was generated on `r format(Sys.Date(), format = "%B %d, %Y")`. Feedback on improvements to this product can be done through reaching out to: getu.gari@reach-initiatives.org
