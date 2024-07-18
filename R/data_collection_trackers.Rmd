@@ -1,7 +1,7 @@
 ---
 title: "ETH MSNA 2024: Data Collection Tracker"
 author: "REACH-Initiatives"
-date: "JUNE 2024"
+date: "JULY 2024"
 output:
     html_document:
     toc: true
@@ -28,13 +28,13 @@ library(supporteR)
 library(leaflet)
 
 # read data
-df_tool_data <- readxl::read_excel("../inputs/ETH2403_MSNA_2024_data.xlsx")  |>  
+df_tool_data <- readxl::read_excel("../inputs/ETH2403_MSNA_2024_data_all.xlsx")  |>  
   mutate(uuid = `_uuid`,
          start_date = as_date(start),
          start = as_datetime(start),
          end = as_datetime(end),
-         latitude = as.numeric(household_geopoint_latitude),
-         longitude = as.numeric(household_geopoint_longitude))
+         latitude = as.numeric(`_household_geopoint_latitude`),
+         longitude = as.numeric(`_household_geopoint_longitude`))
 
 # days that contain data
 df_days_for_data_collection <- df_tool_data |> 
@@ -128,8 +128,10 @@ df_zone_to_kebele_info <- df_choices |>
 dt_options_fewcols <- function(x){
   DT::datatable(x,
                 rownames = FALSE,
-                options = list(
-                  pageLength = 20,
+                extensions = 'Buttons', options = list(
+                  dom = 'Blfrtip',
+                  buttons = c('copy', 'csv', 'excel', 'pdf'),
+                  pageLength = 15,
                   initComplete = JS(
                     "function(settings, json) {",
                     "$(this.api().table().header()).css({'background-color': '#333', 'color': '#fff'});",
@@ -150,7 +152,6 @@ Last date of data collection: **`r df_days_for_data_collection[length(df_days_fo
 ```{r, echo = FALSE}
 df_samp_per_location <- df_samples_required
 df_updated_tool_data |> 
-  #filter(pop_group == "host") |> 
   group_by(admin4) |> 
   summarise(number_of_surveys = n()) |> 
   arrange(admin4) |> 
@@ -161,7 +162,7 @@ df_updated_tool_data |>
          surveys_for_deletion = ifelse(is.na(surveys_for_deletion), 0, surveys_for_deletion),
          int.surveys_and_deletion = number_of_surveys - surveys_for_deletion,
          remaining_surveys = required_samples - int.surveys_and_deletion ) |> 
-  select(-c(int.surveys_and_deletion)) |> #pop_group
+  select(-c(int.surveys_and_deletion)) |>
   mutate(admin4 = as.character(admin4)) |> 
   left_join(df_zone_to_kebele_info, by = c("admin4" = "code")) |> 
   relocate(c(zone, woreda, kebele), .before = number_of_surveys) |>
