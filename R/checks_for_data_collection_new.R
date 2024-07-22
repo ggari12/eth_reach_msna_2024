@@ -41,51 +41,50 @@ create_composite_indicators() |>
   ungroup()
 
 # loops -----------------------------------------------------------------------
-# loop_roster
-loop_roster <- readxl::read_excel(path = data_path, sheet = "roster")
+# roster
+data_nms_roster <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "roster"))
+c_types_roster <- ifelse(str_detect(string = data_nms_roster, pattern = "_other$"), "text", "guess")
+df_loop_roster <- readxl::read_excel(data_path, col_types = c_types_roster, sheet = "roster")
 
-# joining roster loop to main sheet
-df_raw_data_loop_roster <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_roster, by = c("_uuid" = "_submission__uuid"))
+# education
+data_nms_educ <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "edu_ind"))
+c_types_educ <- ifelse(str_detect(string = data_nms_educ, pattern = "_other$"), "text", "guess")
+df_loop_educ <- readxl::read_excel(data_path, col_types = c_types_educ, sheet = "edu_ind")
 
-# loop_health_ind
-loop_health_ind <- readxl::read_excel(path = data_path, sheet = "health_ind")
+# health
+data_nms_health <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "health_ind"))
+c_types_health <- ifelse(str_detect(string = data_nms_health, pattern = "_other$"), "text", "guess")
+df_loop_health <- readxl::read_excel(data_path, col_types = c_types_health, sheet = "health_ind")
 
-df_raw_data_loop_health_ind <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_health_ind, by = c("_uuid" = "_submission__uuid"))
+# civil
+data_nms_civil <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "civil_ind"))
+c_types_civil <- ifelse(str_detect(string = data_nms_civil, pattern = "_other$"), "text", "guess")
+df_loop_civil <- readxl::read_excel(data_path, col_types = c_types_civil, sheet = "civil_ind")
 
-# loop_education_ind
-loop_edu_ind <- readxl::read_excel(path = data_path, sheet = "edu_ind")
+# hazard_concern
+data_nms_hazard_conc <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "hazard_concern_rep"))
+c_types_hazard_conc <- ifelse(str_detect(string = data_nms_hazard_conc, pattern = "_other$"), "text", "guess")
+df_loop_hazard_conc <- readxl::read_excel(data_path, col_types = c_types_hazard_conc, sheet = "hazard_concern_rep")
 
-df_raw_data_loop_edu_ind <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_edu_ind, by = c("_uuid" = "_submission__uuid"))
+# hazard_type
+data_nms_hazard_type <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "hazard_type_rep"))
+c_types_hazard_type <- ifelse(str_detect(string = data_nms_hazard_type, pattern = "_other$"), "text", "guess")
+df_loop_hazard_type <- readxl::read_excel(data_path, col_types = c_types_hazard_type, sheet = "hazard_type_rep")
 
-# loop_hazard_concern_rep
-loop_hazard_concern_rep <- readxl::read_excel(path = data_path, sheet = "hazard_concern_rep")
+# nutrition
+data_nms_nut <- names(readxl::read_excel(path = data_path, n_max = 300, sheet = "nut_ind"))
+c_types_nut <- ifelse(str_detect(string = data_nms_nut, pattern = "_other$"), "text", "guess")
+df_loop_nut <- readxl::read_excel(data_path, col_types = c_types_nut, sheet = "nut_ind")
 
-df_raw_data_loop_hazard_concern_rep <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_hazard_concern_rep, by = c("_uuid" = "_submission__uuid"))
+# joining roster loop to main shet
+df_repeat_roster_data <- df_tool_data %>% 
+  left_join(df_loop_roster, by = c("_uuid" = "_submission__uuid"))
 
-# loop_hazard_type_rep
-loop_hazard_type_rep <- readxl::read_excel(path = data_path, sheet = "hazard_type_rep")
+df_repeat_educ_data <- df_tool_data %>% 
+  left_join(df_loop_educ, by = c("_uuid" = "_submission__uuid"))
 
-df_raw_data_loop_hazard_type_rep <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_hazard_type_rep, by = c("_uuid" = "_submission__uuid"))
-
-df_loop_educ_hazard_data <- df_raw_data_loop_edu_ind |> 
-  inner_join(loop_hazard_type_rep, by = c("_uuid" = "_submission__uuid"))
-
-# loop_nut_ind
-loop_nut_ind <- readxl::read_excel(path = data_path, sheet = "nut_ind")
-
-df_raw_data_loop_nut_ind <- df_tool_data |> 
-  select(-`_index`) |> 
-  inner_join(loop_nut_ind, by = c("_uuid" = "_submission__uuid"))
+df_repeat_educ_hazard_data <- df_loop_educ %>% 
+  left_join(df_loop_hazard_type, by = c("_submission__uuid" = "_submission__uuid"))
 
 # tool
 loc_tool <- "inputs/ETH2403_MSNA_2024_tool.xlsx"
@@ -149,14 +148,19 @@ list_log <- df_tool_data_with_audit_time %>%
                         log_name = "soft_duplicate_log",
                         threshold = 25,
                         return_all_results = FALSE) %>%
-  check_value(uuid_column = "_uuid", values_to_look = c(99, 999, 9999)) %>% 
+  check_value(uuid_column = "_uuid", values_to_look = c(99, 999, 9999)) 
+
+# logical checks
+df_main_plus_loop_logical_checks <- df_repeat_roster_data %>%
   check_logical_with_list(uuid_column = "_uuid",
                           list_of_check = df_list_logical_checks,
                           check_id_column = "check_id",
                           check_to_perform_column = "check_to_perform",
                           columns_to_clean_column = "columns_to_clean",
                           description_column = "description",
-                          bind_checks = TRUE)
+                          bind_checks = TRUE )
+
+list_log$logical_checks <- df_main_plus_loop_logical_checks$logical_all
 
 # others checks ---------------------------------------------------------------
 df_other_checks <- cts_other_specify(input_tool_data = df_tool_data %>% select(-fsl_lcsi_na_other,
@@ -170,7 +174,7 @@ df_other_checks <- cts_other_specify(input_tool_data = df_tool_data %>% select(-
 list_log$other_log <- df_other_checks
 
 # repeat_other_specify --------------------------------------------------------
-df_repeat_other_checks <- cts_other_specify_repeats(input_repeat_data = loop_health_ind,
+df_repeat_other_checks <- cts_other_specify_repeats(input_repeat_data = df_loop_health,
                                                     input_uuid_col = "_submission__uuid",
                                                     input_survey = df_survey,
                                                     input_choices = df_choices,
@@ -180,7 +184,7 @@ df_repeat_other_checks <- cts_other_specify_repeats(input_repeat_data = loop_hea
 # add repeat other checks to the list
 list_log$repeat_other_log <- df_repeat_other_checks
 
-df_repeat_other_checks2 <- cts_other_specify_repeats(input_repeat_data = loop_edu_ind,
+df_repeat_other_checks2 <- cts_other_specify_repeats(input_repeat_data = df_loop_educ,
                                                      input_uuid_col = "_submission__uuid",
                                                      input_survey = df_survey,
                                                      input_choices = df_choices,
@@ -190,7 +194,7 @@ df_repeat_other_checks2 <- cts_other_specify_repeats(input_repeat_data = loop_ed
 # add repeat other checks to the list
 list_log$repeat_other_log2 <- df_repeat_other_checks2
 
-df_repeat_other_checks3 <- cts_other_specify_repeats(input_repeat_data = loop_hazard_concern_rep,
+df_repeat_other_checks3 <- cts_other_specify_repeats(input_repeat_data = df_loop_hazard_conc,
                                                      input_uuid_col = "_submission__uuid",
                                                      input_survey = df_survey,
                                                      input_choices = df_choices,
@@ -200,21 +204,21 @@ df_repeat_other_checks3 <- cts_other_specify_repeats(input_repeat_data = loop_ha
 # add repeat other checks to the list
 list_log$repeat_other_log3 <- df_repeat_other_checks3
 
-df_repeat_other_checks4 <- cts_other_specify_repeats(input_repeat_data = loop_hazard_concern_rep,
+df_repeat_other_checks4 <- cts_other_specify_repeats(input_repeat_data = df_loop_hazard_type,
                                                      input_uuid_col = "_submission__uuid",
                                                      input_survey = df_survey,
                                                      input_choices = df_choices,
-                                                     input_sheet_name = "hazard_concern_rep",
+                                                     input_sheet_name = "hazard_type_rep",
                                                      input_index_col = "_index")
 
 # add repeat other checks to the list
 list_log$repeat_other_log4 <- df_repeat_other_checks4
 
-df_repeat_other_checks5 <- cts_other_specify_repeats(input_repeat_data = loop_nut_ind,
+df_repeat_other_checks5 <- cts_other_specify_repeats(input_repeat_data = df_loop_nut,
                                                      input_uuid_col = "_submission__uuid",
                                                      input_survey = df_survey,
                                                      input_choices = df_choices,
-                                                     input_sheet_name = "hazard_concern_rep",
+                                                     input_sheet_name = "nut_ind",
                                                      input_index_col = "_index")
 
 # add repeat other checks to the list
@@ -297,6 +301,34 @@ list_log$df_no_consent_log <- df_no_consent_check
 df_duplicate_uuids <- cts_checks_duplicate_uuids(input_tool_data = df_tool_data)
 list_log$duplicate_uuid_log <- df_duplicate_uuids
 
+# loops outliers ----------------------------------------------------------
+# roster
+#df_loop_outliers_roster <- cleaningtools::check_outliers(dataset = df_loop_roster %>% select(-ind_pos,
+#                                                                                             -check_age,
+#                                                                                             -check_gender,
+#                                                                                             -`_parent_index`) %>%  
+#                                                           mutate(loop_uuid = paste0(`_submission__uuid`, " * ", `_index`)), 
+#                                                           uuid_column = "loop_uuid", strongness_factor = 3,
+#                                                           sm_separator = "/") 
+#
+#df_potential_loop_outliers_roster <- df_loop_outliers_roster$potential_outliers %>% 
+#  separate_wider_delim(cols = uuid, delim = " * ", names = c("i.check.uuid", "index")) %>% 
+#  mutate(i.check.change_type = "change_response",
+#         i.check.question = question,
+#         i.check.old_value = as.character(old_value),
+#         i.check.new_value = "NA",
+#         i.check.issue = issue,
+#         i.check.description = "",
+#         i.check.other_text = "",
+#         i.check.comment = "",
+#         i.check.reviewed = "",
+#         i.check.so_sm_choices = "",
+#         i.check.sheet = "roster",
+#         i.check.index = index) %>% 
+#  batch_select_rename()
+#
+#list_log$outliers_roster_log <- df_potential_loop_outliers_roster
+
 # spatial checks ----------------------------------------------------------
 if("status" %in% colnames(df_sample_data)){
   sample_pt_nos <- df_sample_data %>%
@@ -340,7 +372,7 @@ list_log$greater_thresh_distance <- df_greater_thresh_distance
 
 # Barrier to water, sanitation or health facility is disability, 
 # but all washington group indicators say no difficulty 
-df_logic_c_barriers_but_wgq_no_difficulty <- df_raw_data_loop_roster %>% 
+df_logic_c_barriers_but_wgq_no_difficulty <- df_repeat_roster_data %>% 
   filter(health_barriers %in% c("disablity"),
          wash_sanitation_access_issue %in% c("disablity"),
          wash_water_access_issue %in% c("disablity"),
@@ -371,7 +403,7 @@ list_log$df_logic_c_barriers_but_wgq_no_difficulty_log <- df_logic_c_barriers_bu
 
 # The household reports that there is no one to look after the children 
 # or the elderly during the market visit even though there are no children in the household. Check.
-df_logic_c_hh_reports_access_barriers_but_no_children <- df_raw_data_loop_roster %>% 
+df_logic_c_hh_reports_access_barriers_but_no_children <- df_repeat_roster_data %>% 
   filter(cm_market_barriers_access == "nlacewvm",
          ind_age_0_4_n == 0, 
          ind_age_5_17_n == 0) %>%
@@ -395,7 +427,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 list_log$df_logic_c_hh_reports_access_barriers_but_no_children_log <- df_logic_c_hh_reports_access_barriers_but_no_children
 
 # LCSI stress 6 strategy (withdrawing children from school to lack of money to cover basic needs) used, but no children of school age 
-df_logic_c_hh_reports_withdrawing_children_but_no_school_aging <- df_raw_data_loop_roster %>% 
+df_logic_c_hh_reports_withdrawing_children_but_no_school_aging <- df_repeat_roster_data %>% 
   filter(fsl_lcsi_en_stress6 =="yes",
          ind_age_schooling_n == 0) %>%
   mutate(i.check.uuid = `_uuid`,
@@ -419,7 +451,7 @@ list_log$df_logic_c_hh_reports_withdrawing_children_but_no_school_aging_log <- d
 
 # The household reports having had to restrict adult consumption so that young children can eat 
 # to cope with a lack of food but there are no children in the household. Check.
-df_logic_c_hh_reports_restrict_mealadult_but_no_adult <- df_raw_data_loop_roster %>% 
+df_logic_c_hh_reports_restrict_mealadult_but_no_adult <- df_repeat_roster_data %>% 
   filter(fsl_rcsi_mealadult > 0,
          ind_age_0_4_n == 0, ind_age_5_17_n == 0) %>%
   mutate(i.check.uuid = `_uuid`,
@@ -442,7 +474,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 list_log$df_logic_c_hh_reports_restrict_mealadult_but_no_adult_log <- df_logic_c_hh_reports_restrict_mealadult_but_no_adult
 
 # Obstacle to education linked to a recent displacement or return when the household says it has never been displaced
-df_logic_c_educ_enroll_displacement_but_no_displaced <- df_raw_data_loop_edu_ind %>% 
+df_logic_c_educ_enroll_displacement_but_no_displaced <- df_repeat_educ_data %>% 
   filter(edu_barrier == "enroll_displacement",
          dis_forced == "no") %>%
   mutate(i.check.uuid = `_uuid`,
@@ -466,7 +498,7 @@ list_log$df_logic_c_educ_enroll_displacement_but_no_displaced_log <- df_logic_c_
 
 # No child aged 5 to 18 in the household attends a school (formal or not) 
 # while the household does not identify education as one of the most important challenges in the household. Check.
-df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ <- df_raw_data_loop_edu_ind %>% 
+df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ <- df_repeat_educ_data %>% 
   filter(edu_barrier == "enroll_displacement",
          dis_forced == "no") %>%
   mutate(i.check.uuid = `_uuid`,
@@ -489,7 +521,7 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 list_log$df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ_log <- df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ
 
 # Education disrupted by natural hazards but selected none to hazard type
-df_logic_c_educ_disrupted_hazards_but_no_hazard_type <- df_loop_educ_hazard_data %>% 
+df_logic_c_educ_disrupted_hazards_but_no_hazard_type <- df_repeat_educ_data %>% 
   filter(edu_disrupted_hazards == "yes",
          hazard_type == "none") %>%
   mutate(i.check.uuid = `_uuid`,
@@ -512,7 +544,8 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 list_log$df_logic_c_educ_disrupted_hazards_but_no_hazard_type_log <- df_logic_c_educ_disrupted_hazards_but_no_hazard_type
 
 # Education disrupted by natural hazards but did not select access_education to hazard_impact question
-df_logic_c_educ_disrupted_hazards_but_no_hazard_impact <- df_loop_educ_hazard_data %>% 
+df_logic_c_educ_disrupted_hazards_but_no_hazard_impact <- df_repeat_educ_hazard_data %>%  
+  mutate(`_uuid` = paste0(`_submission__uuid`)) %>% 
   filter(edu_disrupted_hazards == "yes",
          hazard_impact == "no_impact|access_education") %>%
   mutate(i.check.uuid = `_uuid`,
@@ -608,7 +641,7 @@ list_log$hh_no_eating_beans_nuts_log <- df_logic_c_hh_no_eating_beans_nuts
 cols_with_integer_values <- df_survey  %>% filter(type %in% c("integer"))  %>% pull(name)
 
 df_999_data <- purrr::map_dfr(.x = cols_with_integer_values,
-                              .f = ~ {df_raw_data_loop_roster  %>% 
+                              .f = ~ {df_repeat_roster_data  %>% 
                                   dplyr::filter(str_detect(string = !!sym(.x), pattern = "^-[9]{2,4}$|^[9]{2,4}$")) %>%
                                   dplyr::mutate(i.check.type = "change_response",
                                                 i.check.question = .x,
