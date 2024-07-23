@@ -108,7 +108,7 @@ if (dir.exists("inputs/audit_files")) {
 }
 
 # GIS layer for samples
-df_sample_data <- sf::st_read("inputs/msna_samples.gpkg", quiet = TRUE) %>% 
+df_sample_data <- sf::st_read("inputs/final_msna_samples.gpkg", quiet = TRUE) %>% 
   filter(cluster_typ %in% c("init", "repl"))
 
 # check pii ---------------------------------------------------------------
@@ -393,10 +393,7 @@ df_logic_c_barriers_but_wgq_no_difficulty <- df_repeat_roster_data %>%
          i.check.comment = "",
          i.check.reviewed = "",
          i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_barriers_but_wgq_no_difficulty")
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_barriers_but_wgq_no_difficulty_log <- df_logic_c_barriers_but_wgq_no_difficulty
@@ -418,10 +415,7 @@ df_logic_c_hh_reports_access_barriers_but_no_children <- df_repeat_roster_data %
          i.check.comment = "",
          i.check.reviewed = "",
          i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_reports_access_barriers_but_no_children")
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_hh_reports_access_barriers_but_no_children_log <- df_logic_c_hh_reports_access_barriers_but_no_children
@@ -435,16 +429,13 @@ df_logic_c_hh_reports_withdrawing_children_but_no_school_aging <- df_repeat_rost
          i.check.question = "fsl_lcsi_en_stress6",
          i.check.old_value = as.character(fsl_lcsi_en_stress6),
          i.check.new_value = "",
-         i.check.issue = "hh_reports_withdrawing_children_but_no_school_aging",
+         i.check.issue = glue("fsl_lcsi_en_stress6 : {fsl_lcsi_en_stress6}, but no school aging: {ind_age_schooling_n}"),
          i.check.description = "",
          i.check.other_text = "",
          i.check.comment = "",
          i.check.reviewed = "",
          i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_reports_withdrawing_children_but_no_school_aging")
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_hh_reports_withdrawing_children_but_no_school_aging_log <- df_logic_c_hh_reports_withdrawing_children_but_no_school_aging
@@ -465,10 +456,7 @@ df_logic_c_hh_reports_restrict_mealadult_but_no_adult <- df_repeat_roster_data %
          i.check.comment = "",
          i.check.reviewed = "",
          i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_reports_restrict_mealadult_but_no_adult")
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_hh_reports_restrict_mealadult_but_no_adult_log <- df_logic_c_hh_reports_restrict_mealadult_but_no_adult
@@ -482,43 +470,41 @@ df_logic_c_educ_enroll_displacement_but_no_displaced <- df_repeat_educ_data %>%
          i.check.question = "edu_barrier",
          i.check.old_value = as.character(edu_barrier),
          i.check.new_value = "",
-         i.check.issue = "hh_reports_educ_enroll_displacement_but_no_displaced",
+         i.check.issue =  glue("edu_barrier : {edu_barrier}, but not displaced: {dis_forced}"),
          i.check.description = "",
          i.check.other_text = "",
          i.check.comment = "",
          i.check.reviewed = "",
-         i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_educ_enroll_displacement_but_no_displaced")
+         i.check.so_sm_choices = "",
+         i.check.sheet = "edu_ind",
+         i.check.index = `_index.y`) %>% 
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_educ_enroll_displacement_but_no_displaced_log <- df_logic_c_educ_enroll_displacement_but_no_displaced
 
 # No child aged 5 to 18 in the household attends a school (formal or not) 
 # while the household does not identify education as one of the most important challenges in the household. Check.
-df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ <- df_repeat_educ_data %>% 
-  filter(edu_barrier == "enroll_displacement",
-         dis_forced == "no") %>%
-  mutate(i.check.uuid = `_uuid`,
-         i.check.change_type = "change_response",
-         i.check.question = "edu_barrier",
-         i.check.old_value = as.character(edu_barrier),
-         i.check.new_value = "",
-         i.check.issue = "no_child_attends_school_while_hh_doesnt_identify_educ",
-         i.check.description = "",
-         i.check.other_text = "",
-         i.check.comment = "",
-         i.check.reviewed = "",
-         i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ")
-
+#df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ <- df_repeat_educ_data %>% 
+#  filter(edu_access == "no",
+#         aap_priority_challenge != "education_children") %>%
+#  mutate(i.check.uuid = `_uuid`,
+#         i.check.change_type = "change_response",
+#         i.check.question = "edu_access",
+#         i.check.old_value = as.character(edu_access),
+#         i.check.new_value = "",
+#         i.check.issue = glue("edu_access : {edu_access}, while_hh_doesnt_identify_educ: {aap_priority_challenge}"),
+#         i.check.description = "",
+#         i.check.other_text = "",
+#         i.check.comment = "",
+#         i.check.reviewed = "",
+#         i.check.so_sm_choices = "",
+#         i.check.sheet = "edu_ind",
+#         i.check.index = `_index.y`) %>% 
+#  batch_select_rename()
+#
 # add checks to the list
-list_log$df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ_log <- df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ
+#list_log$df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ_log <- df_logic_c_no_child_attends_school_while_hh_doesnt_identify_educ
 
 # Education disrupted by natural hazards but selected none to hazard type
 df_logic_c_educ_disrupted_hazards_but_no_hazard_type <- df_repeat_educ_data %>% 
@@ -529,16 +515,15 @@ df_logic_c_educ_disrupted_hazards_but_no_hazard_type <- df_repeat_educ_data %>%
          i.check.question = "edu_disrupted_hazards",
          i.check.old_value = as.character(edu_disrupted_hazards),
          i.check.new_value = "",
-         i.check.issue = "educ_disrupted_by_natural_hazards_but_no_hazard_type",
+         i.check.issue =  glue("edu_disrupted_hazards : {edu_disrupted_hazards}, bu no hazard type: {hazard_type}"),
          i.check.description = "",
          i.check.other_text = "",
          i.check.comment = "",
          i.check.reviewed = "",
-         i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_educ_disrupted_hazards_but_no_hazard_type")
+         i.check.so_sm_choices = "",
+         i.check.sheet = "edu_ind",
+         i.check.index = `_index.y`) %>% 
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_educ_disrupted_hazards_but_no_hazard_type_log <- df_logic_c_educ_disrupted_hazards_but_no_hazard_type
@@ -553,16 +538,15 @@ df_logic_c_educ_disrupted_hazards_but_no_hazard_impact <- df_repeat_educ_hazard_
          i.check.question = "edu_disrupted_hazards",
          i.check.old_value = as.character(edu_disrupted_hazards),
          i.check.new_value = "",
-         i.check.issue = "educ_disrupted_by_natural_hazards_but_no_hazard_type",
+         i.check.issue = glue("edu_disrupted_hazards : {edu_disrupted_hazards}, bu no report hazard impact: {hazard_impact}"),
          i.check.description = "",
          i.check.other_text = "",
          i.check.comment = "",
          i.check.reviewed = "",
-         i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_educ_disrupted_hazards_but_no_hazard_impact")
+         i.check.so_sm_choices = "",
+         i.check.sheet = "edu_ind",
+         i.check.index = `_index.y`) %>% 
+  batch_select_rename()
 
 # add checks to the list
 list_log$df_logic_c_educ_disrupted_hazards_but_no_hazard_impact_log <- df_logic_c_educ_disrupted_hazards_but_no_hazard_impact
@@ -580,11 +564,8 @@ df_logic_c_hh_no_eating_condiments <- df_tool_data %>%
          i.check.other_text = "",
          i.check.comment = "enumerators misinterpreted question",
          i.check.reviewed = "",
-         i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_no_eating_condiments")
+         i.check.so_sm_choices = "")%>% 
+  batch_select_rename()
 
 # add checks to the list
 list_log$hh_no_eating_condiments_log <- df_logic_c_hh_no_eating_condiments
@@ -603,10 +584,7 @@ df_logic_c_hh_no_eating_beans_nuts <- df_tool_data %>%
          i.check.comment = "It's unlikely that a household spent 7 days eating food without any beans/legumes, pulses or nuts",
          i.check.reviewed = "",
          i.check.so_sm_choices = "") %>% 
-  dplyr::select(starts_with("i.check")) %>% 
-  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_no_eating_beans_nuts")
+  batch_select_rename()
 
 # add checks to the list
 list_log$hh_no_eating_beans_nuts_log <- df_logic_c_hh_no_eating_beans_nuts
@@ -625,10 +603,7 @@ list_log$hh_no_eating_beans_nuts_log <- df_logic_c_hh_no_eating_beans_nuts
 #         i.check.comment = "enumerators misinterpreted question",
 #         i.check.reviewed = "",
 #         i.check.so_sm_choices = "") %>% 
-#  dplyr::select(starts_with("i.check")) %>% 
-#  rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-#add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_hh_report_short_time_but_health_facility_far_away")
+# batch_select_rename()
 
 # add checks to the list
 #list_log$hh_report_short_time_but_health_facility_far_away_log <- df_logic_c_hh_report_short_time_but_health_facility_far_away
@@ -656,8 +631,6 @@ df_999_data <- purrr::map_dfr(.x = cols_with_integer_values,
                                   dplyr::select(starts_with("i.check"))}) %>% 
                                   rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
 
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_999_data")
-
 # add checks to the list
 list_log$logic_c_handle_999_log <- df_999_data
 
@@ -679,8 +652,6 @@ df_999_data_other <- purrr::map_dfr(.x = cols_with_text_values,
                                                 i.check.so_sm_choices = "") %>% 
                                   dplyr::select(starts_with("i.check"))}) %>% 
   rename_with(~str_replace(string = .x, pattern = "i.check.", replacement = ""))
-
-add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_999_data_other")
 
 # add checks to the list
 list_log$logic_c_handle_999_other_log <- df_999_data_other
