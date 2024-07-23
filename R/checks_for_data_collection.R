@@ -84,7 +84,7 @@ loc_tool <- "inputs/ETH2403_MSNA_2024_tool.xlsx"
 df_survey <- readxl::read_excel(loc_tool, sheet = "survey") 
 df_choices <- readxl::read_excel(loc_tool, sheet = "choices")
 
-df_sample_data <- sf::st_read("inputs/msna_samples.gpkg", quiet = TRUE) %>% 
+df_sample_data <- sf::st_read("inputs/final_msna_samples.gpkg", quiet = TRUE) %>% 
   filter(cluster_typ %in% c("init", "repl"))
 
 # checks ----------------------------------------------------------------------
