@@ -63,17 +63,16 @@ df_survey <- readxl::read_excel(loc_tool, sheet = "survey")
 df_choices <- readxl::read_excel(loc_tool, sheet = "choices")
 
 df_filled_cl <- readxl::read_excel("inputs/main_combined_checks_eth_msna_gg.xlsx", sheet = "cleaning_log") %>% 
-  filter(!is.na(reviewed), !question %in% c("_index"), !uuid %in% c("all"))%>%
-  mutate(sheet = sheet)
+  filter(!is.na(reviewed), !question %in% c("_index"), !uuid %in% c("all"))
 
 df_remove_survey_cl <- df_filled_cl %>% 
   filter(change_type %in% c("remove_survey"))
 
 # check pii ---------------------------------------------------------------
-pii_from_data <- cleaningtools::check_pii(dataset = df_tool_data, element_name = "checked_dataset", uuid_column = "_uuid")
-pii_from_data$potential_PII
+pii_from_data_host <- cleaningtools::check_pii(dataset = df_tool_data, element_name = "checked_dataset", uuid_column = "_uuid")
+pii_from_data_host$potential_PII
 
-# then determine wich columns to remove from both the raw and clean data
+# then determine which columns to remove from both the raw and clean data
 cols_to_remove <- c("audit", "audit_URL", "pt_num_msg", "pt_num_validation_message",
                     "pt_sample_lat", "pt_sample_lon", "dist_btn_sample_collected", 
                     "threshold_msg_2_positive", "threshold_msg_2_negative",
@@ -82,25 +81,28 @@ cols_to_remove <- c("audit", "audit_URL", "pt_num_msg", "pt_num_validation_messa
                     "_household_geopoint_altitude",	"_household_geopoint_precision")
 
 # Main dataset ------------------------------------------------------------
+
 # filtered log
 df_filled_cl_main <- df_filled_cl %>% 
   filter(is.na(sheet))
 
 # updating the main dataset with new columns
+
 df_data_with_added_cols <- cts_add_new_sm_choices_to_data(input_df_tool_data = df_tool_data,
-                                                          input_df_filled_cl = df_filled_cl_main, 
-                                                          input_df_survey = df_survey,
-                                                          input_df_choices = df_choices)
+                                                               input_df_filled_cl = df_filled_cl_main, 
+                                                               input_df_survey = df_survey,
+                                                               input_df_choices = df_choices)
 
 # check the cleaning log
-df_cl_review <- cleaningtools::review_cleaning_log(raw_dataset = df_data_with_added_cols,
-                                                   raw_data_uuid_column = "_uuid",
-                                                   cleaning_log = df_filled_cl_main,
-                                                   cleaning_log_change_type_column = "change_type",
-                                                   change_response_value = "change_response",
-                                                   cleaning_log_question_column = "question",
-                                                   cleaning_log_uuid_column = "uuid",
-                                                   cleaning_log_new_value_column = "new_value")
+df_cl_review <- cleaningtools::review_cleaning_log(
+  raw_dataset = df_data_with_added_cols,
+  raw_data_uuid_column = "_uuid",
+  cleaning_log = df_filled_cl_main,
+  cleaning_log_change_type_column = "change_type",
+  change_response_value = "change_response",
+  cleaning_log_question_column = "question",
+  cleaning_log_uuid_column = "uuid",
+  cleaning_log_new_value_column = "new_value")
 
 # filter log for cleaning
 df_final_cleaning_log <- df_filled_cl_main %>% 
@@ -109,31 +111,34 @@ df_final_cleaning_log <- df_filled_cl_main %>%
   filter(!str_detect(string = question, pattern = "\\w+\\/$"))
 
 # create the clean data from the raw data and cleaning log
-df_cleaning_step <- cleaningtools::create_clean_data(raw_dataset = df_data_with_added_cols %>% select(-any_of(cols_to_remove)), 
-                                                     raw_data_uuid_column = "_uuid",
-                                                     cleaning_log = df_final_cleaning_log,
-                                                     cleaning_log_change_type_column = "change_type",
-                                                     change_response_value = "change_response",
-                                                     NA_response_value = "blank_response",
-                                                     no_change_value = "no_action",
-                                                     remove_survey_value = "remove_survey",
-                                                     cleaning_log_question_column = "question",
-                                                     cleaning_log_uuid_column = "uuid",
-                                                     cleaning_log_new_value_column = "new_value")
+df_cleaning_step <- cleaningtools::create_clean_data(
+  raw_dataset = df_data_with_added_cols %>% select(-any_of(cols_to_remove)),
+  raw_data_uuid_column = "_uuid",
+  cleaning_log = df_final_cleaning_log,
+  cleaning_log_change_type_column = "change_type",
+  change_response_value = "change_response",
+  NA_response_value = "blank_response",
+  no_change_value = "no_action",
+  remove_survey_value = "remove_survey",
+  cleaning_log_question_column = "question",
+  cleaning_log_uuid_column = "uuid",
+  cleaning_log_new_value_column = "new_value")
 
 # handle parent question columns
 df_updating_sm_parents <- cts_update_sm_parent_cols(input_df_cleaning_step_data = df_cleaning_step, 
-                                                    input_uuid_col = "_uuid",
-                                                    input_point_id_col = "point_number",
-                                                    input_collected_date_col = "today",
-                                                    input_location_col = "admin4")
+                                                         input_uuid_col = "_uuid",
+                                                         input_point_id_col = "point_number",
+                                                         input_collected_date_col = "today",
+                                                         input_location_col = "admin4")
 
 # tool data to support loops ----------------------------------------------
+
 df_tool_support_data_for_loops <- df_updating_sm_parents$updated_sm_parents %>% 
   filter(!`_uuid` %in% df_remove_survey_cl$uuid) %>% 
   select(`_uuid`, admin4, today, enumerator_id, point_number)
 
 # roster cleaning ---------------------------------------------------------
+
 # then determine wich columns to remove from both the raw and clean data
 cols_to_remove_roster <- c("name")
 # filtered log
@@ -143,20 +148,21 @@ df_filled_cl_roster <- df_filled_cl %>%
 # updating the main dataset with new columns
 
 df_data_with_added_cols_roster <- cts_add_new_sm_choices_to_data(input_df_tool_data = df_loop_roster %>% 
-                                                                   left_join(df_tool_support_data_for_loops, by = c("_submission__uuid" = "_uuid")),
-                                                                 input_df_filled_cl = df_filled_cl_roster, 
-                                                                 input_df_survey = df_survey,
-                                                                 input_df_choices = df_choices)
+                                                                        left_join(df_tool_support_data_for_loops, by = c("_submission__uuid" = "_uuid")),
+                                                                      input_df_filled_cl = df_filled_cl_roster, 
+                                                                      input_df_survey = df_survey,
+                                                                      input_df_choices = df_choices)
 
 # check the cleaning log
-df_cl_review <- cleaningtools::review_cleaning_log(raw_dataset = df_data_with_added_cols_roster,
-                                                   raw_data_uuid_column = "_submission__uuid",
-                                                   cleaning_log = df_filled_cl_roster,
-                                                   cleaning_log_change_type_column = "change_type",
-                                                   change_response_value = "change_response",
-                                                   cleaning_log_question_column = "question",
-                                                   cleaning_log_uuid_column = "uuid",
-                                                   cleaning_log_new_value_column = "new_value")
+df_cl_review <- cleaningtools::review_cleaning_log(
+  raw_dataset = df_data_with_added_cols_roster,
+  raw_data_uuid_column = "_submission__uuid",
+  cleaning_log = df_filled_cl_roster,
+  cleaning_log_change_type_column = "change_type",
+  change_response_value = "change_response",
+  cleaning_log_question_column = "question",
+  cleaning_log_uuid_column = "uuid",
+  cleaning_log_new_value_column = "new_value")
 
 # filter log for cleaning
 df_final_cleaning_log_roster <- df_filled_cl_roster %>% 
@@ -166,20 +172,21 @@ df_final_cleaning_log_roster <- df_filled_cl_roster %>%
   filter(!str_detect(string = question, pattern = "\\w+\\/$"))
 
 # create the clean data from the raw data and cleaning log
-df_cleaning_step_roster <- cleaningtools::create_clean_data(raw_dataset = df_data_with_added_cols_roster %>% 
-                                                              select(-any_of(cols_to_remove_roster)) %>% 
-                                                              mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                            raw_data_uuid_column = "cleaning_uuid",
-                                                            cleaning_log = df_final_cleaning_log_roster %>% 
-                                                              mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                            cleaning_log_change_type_column = "change_type",
-                                                            change_response_value = "change_response",
-                                                            NA_response_value = "blank_response",
-                                                            no_change_value = "no_action",
-                                                            remove_survey_value = "remove_survey",
-                                                            cleaning_log_question_column = "question",
-                                                            cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                            cleaning_log_new_value_column = "new_value")
+df_cleaning_step_roster <- cleaningtools::create_clean_data(
+  raw_dataset = df_data_with_added_cols_roster %>% 
+    select(-any_of(cols_to_remove_roster)) %>% 
+    mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+  raw_data_uuid_column = "cleaning_uuid",
+  cleaning_log = df_final_cleaning_log_roster %>% 
+    mutate(log_cleaning_uuid = paste0(uuid, index)),
+  cleaning_log_change_type_column = "change_type",
+  change_response_value = "change_response",
+  NA_response_value = "blank_response",
+  no_change_value = "no_action",
+  remove_survey_value = "remove_survey",
+  cleaning_log_question_column = "question",
+  cleaning_log_uuid_column = "log_cleaning_uuid",
+  cleaning_log_new_value_column = "new_value")
 
 # handle parent question columns
 df_updating_sm_parents_roster <- cts_update_sm_parent_cols(input_df_cleaning_step_data = df_cleaning_step_roster,
@@ -187,27 +194,27 @@ df_updating_sm_parents_roster <- cts_update_sm_parent_cols(input_df_cleaning_ste
                                                                 input_enumerator_id_col = "enumerator_id",
                                                                 input_point_id_col = "point_number",
                                                                 input_collected_date_col = "today",
-                                                                input_location_col = "amin4", 
+                                                                input_location_col = "admin4", 
                                                                 input_dataset_type = "loop", 
                                                                 input_sheet_name = "roster", 
                                                                 input_index_col = "_index")
 
 # education cleaning ---------------------------------------------------------
 # then determine which columns to remove from both the raw and clean data
- cols_to_remove_educ <- c("name")
+cols_to_remove_educ <- c("name")
 # filtered log
 df_filled_cl_educ <- df_filled_cl %>% 
   filter(sheet %in% c("edu_ind", "grp_edu"), !is.na(index))
 
 # check the cleaning log
 df_cl_review <- cleaningtools::review_cleaning_log(raw_dataset = df_loop_educ,
-                                                        raw_data_uuid_column = "_submission__uuid",
-                                                        cleaning_log = df_filled_cl_educ,
-                                                        cleaning_log_change_type_column = "change_type",
-                                                        change_response_value = "change_response",
-                                                        cleaning_log_question_column = "question",
-                                                        cleaning_log_uuid_column = "uuid",
-                                                        cleaning_log_new_value_column = "new_value")
+                                                   raw_data_uuid_column = "_submission__uuid",
+                                                   cleaning_log = df_filled_cl_educ,
+                                                   cleaning_log_change_type_column = "change_type",
+                                                   change_response_value = "change_response",
+                                                   cleaning_log_question_column = "question",
+                                                   cleaning_log_uuid_column = "uuid",
+                                                   cleaning_log_new_value_column = "new_value")
 
 # filter log for cleaning
 df_final_cleaning_log_educ <- df_filled_cl_educ %>% 
@@ -218,18 +225,18 @@ df_final_cleaning_log_educ <- df_filled_cl_educ %>%
 
 # create the clean data from the raw data and cleaning log
 df_cleaning_step_educ <- cleaningtools::create_clean_data(raw_dataset = df_loop_educ %>% 
-                                                                   mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                                 raw_data_uuid_column = "cleaning_uuid",
-                                                                 cleaning_log = df_final_cleaning_log_educ %>% 
-                                                                   mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                                 cleaning_log_change_type_column = "change_type",
-                                                                 change_response_value = "change_response",
-                                                                 NA_response_value = "blank_response",
-                                                                 no_change_value = "no_action",
-                                                                 remove_survey_value = "remove_survey",
-                                                                 cleaning_log_question_column = "question",
-                                                                 cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                                 cleaning_log_new_value_column = "new_value")
+                                                            mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+                                                          raw_data_uuid_column = "cleaning_uuid",
+                                                          cleaning_log = df_final_cleaning_log_educ %>% 
+                                                            mutate(log_cleaning_uuid = paste0(uuid, index)),
+                                                          cleaning_log_change_type_column = "change_type",
+                                                          change_response_value = "change_response",
+                                                          NA_response_value = "blank_response",
+                                                          no_change_value = "no_action",
+                                                          remove_survey_value = "remove_survey",
+                                                          cleaning_log_question_column = "question",
+                                                          cleaning_log_uuid_column = "log_cleaning_uuid",
+                                                          cleaning_log_new_value_column = "new_value")
 
 # health cleaning ---------------------------------------------------------
 # then determine which columns to remove from both the raw and clean data
@@ -257,19 +264,18 @@ df_final_cleaning_log_health <- df_filled_cl_health %>%
 
 # create the clean data from the raw data and cleaning log
 df_cleaning_step_health <- cleaningtools::create_clean_data(raw_dataset = df_loop_health %>% 
-                                                            mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                          raw_data_uuid_column = "cleaning_uuid",
-                                                          cleaning_log = df_final_cleaning_log_health %>% 
-                                                            mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                          cleaning_log_change_type_column = "change_type",
-                                                          change_response_value = "change_response",
-                                                          NA_response_value = "blank_response",
-                                                          no_change_value = "no_action",
-                                                          remove_survey_value = "remove_survey",
-                                                          cleaning_log_question_column = "question",
-                                                          cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                          cleaning_log_new_value_column = "new_value")
-
+                                                              mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+                                                            raw_data_uuid_column = "cleaning_uuid",
+                                                            cleaning_log = df_final_cleaning_log_health %>% 
+                                                              mutate(log_cleaning_uuid = paste0(uuid, index)),
+                                                            cleaning_log_change_type_column = "change_type",
+                                                            change_response_value = "change_response",
+                                                            NA_response_value = "blank_response",
+                                                            no_change_value = "no_action",
+                                                            remove_survey_value = "remove_survey",
+                                                            cleaning_log_question_column = "question",
+                                                            cleaning_log_uuid_column = "log_cleaning_uuid",
+                                                            cleaning_log_new_value_column = "new_value")
 # civil cleaning ---------------------------------------------------------
 # then determine which columns to remove from both the raw and clean data
 cols_to_remove_civil <- c("name")
@@ -296,18 +302,18 @@ df_final_cleaning_log_civil <- df_filled_cl_civil %>%
 
 # create the clean data from the raw data and cleaning log
 df_cleaning_step_civil <- cleaningtools::create_clean_data(raw_dataset = df_loop_civil %>% 
-                                                            mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                          raw_data_uuid_column = "cleaning_uuid",
-                                                          cleaning_log = df_final_cleaning_log_civil %>% 
-                                                            mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                          cleaning_log_change_type_column = "change_type",
-                                                          change_response_value = "change_response",
-                                                          NA_response_value = "blank_response",
-                                                          no_change_value = "no_action",
-                                                          remove_survey_value = "remove_survey",
-                                                          cleaning_log_question_column = "question",
-                                                          cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                          cleaning_log_new_value_column = "new_value")
+                                                             mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+                                                           raw_data_uuid_column = "cleaning_uuid",
+                                                           cleaning_log = df_final_cleaning_log_civil %>% 
+                                                             mutate(log_cleaning_uuid = paste0(uuid, index)),
+                                                           cleaning_log_change_type_column = "change_type",
+                                                           change_response_value = "change_response",
+                                                           NA_response_value = "blank_response",
+                                                           no_change_value = "no_action",
+                                                           remove_survey_value = "remove_survey",
+                                                           cleaning_log_question_column = "question",
+                                                           cleaning_log_uuid_column = "log_cleaning_uuid",
+                                                           cleaning_log_new_value_column = "new_value")
 
 # hazard concern cleaning -----------------------------------------------------
 # then determine which columns to remove from both the raw and clean data
@@ -335,18 +341,18 @@ df_final_cleaning_log_hazardc <- df_filled_cl_hazardc %>%
 
 # create the clean data from the raw data and cleaning log
 df_cleaning_step_hazardc <- cleaningtools::create_clean_data(raw_dataset = df_loop_hazard_conc %>% 
-                                                            mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                          raw_data_uuid_column = "cleaning_uuid",
-                                                          cleaning_log = df_final_cleaning_log_hazardc %>% 
-                                                            mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                          cleaning_log_change_type_column = "change_type",
-                                                          change_response_value = "change_response",
-                                                          NA_response_value = "blank_response",
-                                                          no_change_value = "no_action",
-                                                          remove_survey_value = "remove_survey",
-                                                          cleaning_log_question_column = "question",
-                                                          cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                          cleaning_log_new_value_column = "new_value")
+                                                               mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+                                                             raw_data_uuid_column = "cleaning_uuid",
+                                                             cleaning_log = df_final_cleaning_log_hazardc %>% 
+                                                               mutate(log_cleaning_uuid = paste0(uuid, index)),
+                                                             cleaning_log_change_type_column = "change_type",
+                                                             change_response_value = "change_response",
+                                                             NA_response_value = "blank_response",
+                                                             no_change_value = "no_action",
+                                                             remove_survey_value = "remove_survey",
+                                                             cleaning_log_question_column = "question",
+                                                             cleaning_log_uuid_column = "log_cleaning_uuid",
+                                                             cleaning_log_new_value_column = "new_value")
 
 # hazard type cleaning --------------------------------------------------------
 # then determine which columns to remove from both the raw and clean data
@@ -374,18 +380,18 @@ df_final_cleaning_log_hazardt <- df_filled_cl_hazardt %>%
 
 # create the clean data from the raw data and cleaning log
 df_cleaning_step_hazardt <- cleaningtools::create_clean_data(raw_dataset = df_loop_hazard_type %>% 
-                                                            mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                          raw_data_uuid_column = "cleaning_uuid",
-                                                          cleaning_log = df_final_cleaning_log_hazardt %>% 
-                                                            mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                          cleaning_log_change_type_column = "change_type",
-                                                          change_response_value = "change_response",
-                                                          NA_response_value = "blank_response",
-                                                          no_change_value = "no_action",
-                                                          remove_survey_value = "remove_survey",
-                                                          cleaning_log_question_column = "question",
-                                                          cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                          cleaning_log_new_value_column = "new_value")
+                                                               mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+                                                             raw_data_uuid_column = "cleaning_uuid",
+                                                             cleaning_log = df_final_cleaning_log_hazardt %>% 
+                                                               mutate(log_cleaning_uuid = paste0(uuid, index)),
+                                                             cleaning_log_change_type_column = "change_type",
+                                                             change_response_value = "change_response",
+                                                             NA_response_value = "blank_response",
+                                                             no_change_value = "no_action",
+                                                             remove_survey_value = "remove_survey",
+                                                             cleaning_log_question_column = "question",
+                                                             cleaning_log_uuid_column = "log_cleaning_uuid",
+                                                             cleaning_log_new_value_column = "new_value")
 
 # nutrition cleaning ---------------------------------------------------------
 # then determine which columns to remove from both the raw and clean data
@@ -413,53 +419,53 @@ df_final_cleaning_log_nut <- df_filled_cl_nut %>%
 
 # create the clean data from the raw data and cleaning log
 df_cleaning_step_nut <- cleaningtools::create_clean_data(raw_dataset = df_loop_nut %>% 
-                                                            mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
-                                                          raw_data_uuid_column = "cleaning_uuid",
-                                                          cleaning_log = df_final_cleaning_log_nut %>% 
-                                                            mutate(log_cleaning_uuid = paste0(uuid, index)),
-                                                          cleaning_log_change_type_column = "change_type",
-                                                          change_response_value = "change_response",
-                                                          NA_response_value = "blank_response",
-                                                          no_change_value = "no_action",
-                                                          remove_survey_value = "remove_survey",
-                                                          cleaning_log_question_column = "question",
-                                                          cleaning_log_uuid_column = "log_cleaning_uuid",
-                                                          cleaning_log_new_value_column = "new_value")
+                                                           mutate(cleaning_uuid = paste0(`_submission__uuid`, `_index`)),
+                                                         raw_data_uuid_column = "cleaning_uuid",
+                                                         cleaning_log = df_final_cleaning_log_nut %>% 
+                                                           mutate(log_cleaning_uuid = paste0(uuid, index)),
+                                                         cleaning_log_change_type_column = "change_type",
+                                                         change_response_value = "change_response",
+                                                         NA_response_value = "blank_response",
+                                                         no_change_value = "no_action",
+                                                         remove_survey_value = "remove_survey",
+                                                         cleaning_log_question_column = "question",
+                                                         cleaning_log_uuid_column = "log_cleaning_uuid",
+                                                         cleaning_log_new_value_column = "new_value")
 
 # export datasets ---------------------------------------------------------
 
 list_of_datasets <- list("raw_data" = df_tool_data %>% select(-any_of(cols_to_remove)),
-                         #"raw_roster" = df_loop_roster %>% select(-any_of(cols_to_remove_roster)),
-                         #"raw_educ" = df_loop_educ,
-                         "raw_health" = df_loop_health,
-                         #"raw_nut" = df_loop_nut,
-                         #"raw_civil" = df_loop_civil,
-                         #"raw_hazardc" = df_loop_hazard_conc,
-                         #"raw_hazardt" = df_loop_hazard_type,
-                         "cleaned_data" = df_updating_sm_parents$updated_sm_parents %>% 
-                           filter(!`_uuid` %in% df_remove_survey_cl$uuid),
-                         #"cleaned_roster" = df_updating_sm_parents_roster$updated_sm_parents %>% 
-                         #  filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>% 
-                         #  select(-cleaning_uuid),
-                         #"cleaned_educ" = df_cleaning_step_educ %>% 
-                         #  filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>% 
-                         #  select(-cleaning_uuid),
-                         "cleaned_health" = df_cleaning_step_health %>% 
-                           filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>% 
-                           select(-cleaning_uuid)
-                         #"cleaned_nut" = df_cleaning_step_nut %>% 
-                         #   filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>%
-                         #  select(-cleaning_uuid),
-                         #"cleaned_civil" = df_cleaning_step_civil %>% 
-                         #  filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>%
-                         # select(-cleaning_uuid),
-                         #"cleaned_hazardc" = df_cleaning_step_hazardc %>% 
-                         #   filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>%
-                         #  select(-cleaning_uuid),
-                         #"cleaned_hazardt" = df_cleaning_step_hazardt %>% 
-                         #   filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>%
-                         #  select(-cleaning_uuid)
-                        )
+                              "raw_roster" = df_loop_roster %>% select(-any_of(cols_to_remove_roster)),
+                              "raw_educ" = df_loop_educ,
+                              "raw_health" = df_loop_health,
+                              "raw_nutrition" = df_loop_nut,
+                              "raw_civil" = df_loop_civil,
+                              "raw_hazardc" = df_loop_hazard_conc,
+                              "raw_hazardt" = df_loop_hazard_type,
+                              "cleaned_data" = df_updating_sm_parents$updated_sm_parents %>% 
+                                filter(!`_uuid` %in% df_remove_survey_cl$uuid),
+                              "cleaned_roster" = df_loop_roster %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid), #%>% 
+                                #select(-cleaning_uuid),
+                              "cleaned_educ" = df_cleaning_step_educ %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>% 
+                                select(-cleaning_uuid),
+                              "cleaned_health" = df_cleaning_step_health %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) %>% 
+                                select(-cleaning_uuid),
+                              "cleaned_nutrition" = df_loop_nut %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid), #%>%
+                                # select(-cleaning_uuid)
+                              "cleaned_civil" = df_loop_civil %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid), #%>%
+                                # select(-cleaning_uuid),
+                              "cleaned_hazardc" = df_loop_hazard_conc %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid), #%>%
+                                #  select(-cleaning_uuid),
+                              "cleaned_hazardt" = df_loop_hazard_type %>% 
+                                filter(!`_submission__uuid` %in% df_remove_survey_cl$uuid) #%>%
+                                #  select(-cleaning_uuid)
+                              )
 
 openxlsx::write.xlsx(list_of_datasets, paste0("outputs/", butteR::date_file_prefix(), 
                                               "_ETH2403_eth_msna_cleaned_data.xlsx"), overwrite = TRUE)
