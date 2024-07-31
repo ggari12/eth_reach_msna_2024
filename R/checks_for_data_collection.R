@@ -362,13 +362,13 @@ add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_l
 
 # HH reports 'sell more livestock than usual', but reports not owning any livestock
 df_logic_c_sell_livestock_but_not_owning_any_livestock <- df_tool_data |> 
-  filter(fsl_lcsi_en_crisis1 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "none")) |> 
+  filter(fsl_lcsi_en_stress4 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "none")) |> 
   mutate(i.check.type = "change_response",
-         i.check.name = "fsl_lcsi_en_crisis1",
-         i.check.current_value = fsl_lcsi_en_crisis1,
+         i.check.name = "fsl_lcsi_en_stress4",
+         i.check.current_value = fsl_lcsi_en_stress4,
          i.check.value = "",
          i.check.issue_id = "hh_response_sell_livestock_but_not_owning_any_livestock",
-         i.check.issue = glue("lcsi_crisis: {fsl_lcsi_en_crisis1} but hh_not_own_livestock: {cm_assets_ownership_agriculture}"),
+         i.check.issue = glue("lcsi_stress: {fsl_lcsi_en_stress4} but hh_not_own_livestock: {cm_assets_ownership_agriculture}"),
          i.check.other_text = "",
          i.check.checked_by = "",
          i.check.checked_date = as_date(today()),
@@ -379,6 +379,26 @@ df_logic_c_sell_livestock_but_not_owning_any_livestock <- df_tool_data |>
   batch_select_rename() 
 
 add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_sell_livestock_but_not_owning_any_livestock")
+
+# HH reports 'sell more livestock than usual', but reports not owning any livestock
+df_logic_c_sell_livestock_but_not_owning_any_livestock2 <- df_tool_data |> 
+  filter(fsl_lcsi_en_crisis2 %in%  c("yes"), cm_assets_ownership_agriculture %in% c( "none")) |> 
+  mutate(i.check.type = "change_response",
+         i.check.name = "fsl_lcsi_en_crisis2",
+         i.check.current_value = fsl_lcsi_en_crisis1,
+         i.check.value = "",
+         i.check.issue_id = "hh_response_sell_livestock_but_not_owning_any_livestock2",
+         i.check.issue = glue("lcsi_crisis: {fsl_lcsi_en_crisis2} but hh_not_own_livestock: {cm_assets_ownership_agriculture}"),
+         i.check.other_text = "",
+         i.check.checked_by = "",
+         i.check.checked_date = as_date(today()),
+         i.check.comment = "", 
+         i.check.reviewed = "",
+         i.check.adjust_log = "",
+         i.check.so_sm_choices = "")  |> 
+  batch_select_rename() 
+
+add_checks_data_to_list(input_list_name = "checks_output", input_df_name = "df_logic_c_sell_livestock_but_not_owning_any_livestock2")
 
 # HH reports 'sell the last female animal', but reports not owning any livestock
 df_logic_c_sell_female_animal_but_not_owning_any_livestock <- df_tool_data |> 
