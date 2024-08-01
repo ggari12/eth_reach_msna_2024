@@ -137,7 +137,7 @@ list_log <- df_tool_data_with_audit_time %>%
   check_duration(column_to_check = "duration_audit_sum_all_minutes",
                  uuid_column = "_uuid",
                  log_name = "duration_log",
-                 lower_bound = 25,
+                 lower_bound = 30,
                  higher_bound = 120) %>% 
   check_outliers(uuid_column = "_uuid", sm_separator = "/",
                  strongness_factor = 3, columns_not_to_check = outlier_cols_not_4_checking) %>% 
@@ -148,19 +148,14 @@ list_log <- df_tool_data_with_audit_time %>%
                         log_name = "soft_duplicate_log",
                         threshold = 25,
                         return_all_results = FALSE) %>%
-  check_value(uuid_column = "_uuid", values_to_look = c(99, 999, 9999)) 
-
-# logical checks
-df_main_plus_loop_logical_checks <- df_repeat_roster_data %>%
+  check_value(uuid_column = "_uuid", values_to_look = c(99, 999, 9999)) %>% 
   check_logical_with_list(uuid_column = "_uuid",
                           list_of_check = df_list_logical_checks,
                           check_id_column = "check_id",
                           check_to_perform_column = "check_to_perform",
                           columns_to_clean_column = "columns_to_clean",
                           description_column = "description",
-                          bind_checks = TRUE )
-
-list_log$logical_checks <- df_main_plus_loop_logical_checks$logical_all
+                          bind_checks = TRUE)
 
 # others checks ---------------------------------------------------------------
 df_other_checks <- cts_other_specify(input_tool_data = df_tool_data %>% select(-fsl_lcsi_na_other,
@@ -169,7 +164,6 @@ df_other_checks <- cts_other_specify(input_tool_data = df_tool_data %>% select(-
                                      input_uuid_col = "_uuid", 
                                      input_survey = df_survey, 
                                      input_choices = df_choices)
-
 # add other checks to the list
 list_log$other_log <- df_other_checks
 
