@@ -1,5 +1,4 @@
 ###############################################################################
-
 library(tidyverse)
 library(srvyr)
 library(supporteR)
@@ -13,7 +12,7 @@ source("R/composite_indicators.R")
 clean_loc_data <- "inputs/ETH2403_eth_msna_cleaned_data.xlsx"
 
 # main data
-clean_data_nms <- names(readxl::read_excel(path = clean_loc_data, n_max = 2000, sheet = "cleaned_data"))
+clean_data_nms <- names(readxl::read_excel(path = clean_loc_data, n_max = 5000, sheet = "cleaned_data"))
 clean_c_types <- ifelse(str_detect(string = clean_data_nms, pattern = "_other$"), "text", "guess")
 df_main_clean_data <- readxl::read_excel(clean_loc_data, col_types = clean_c_types, sheet = "cleaned_data") |> 
   select(-starts_with("i.")) |> 
@@ -84,9 +83,9 @@ df_clean_loop_hazardt <- loop_support_data %>%
 loc_tool <- "inputs/ETH2403_MSNA_2024_tool.xlsx"
 df_survey <- readxl::read_excel(loc_tool, sheet = "survey")
 df_choices <- readxl::read_excel(loc_tool, sheet = "choices")
-
+ 
 # loa // list of analysis
-all_loa_msna <- read_csv("inputs/r_loa_msna_eth_updated.csv")
+all_loa_msna <- read_csv("inputs/r_loa_msna_eth.csv")
 
 # individual to hh level ------------------------------------------------------
 
@@ -114,54 +113,22 @@ df_data_with_composites <- df_main_clean_data %>%
 
 #  analysis - main ------------------------------------------------------------
 # main
-df_main <- df_main_clean_data #df_data_with_composites 
+df_main <- df_main_clean_data 
 
 # survey object
 main_svy <- as_survey(.data = df_main, strata = strata)
 
-# loa break1
+# loa
 df_main_loa <- all_loa_msna %>% 
-  filter(dataset %in% c("main_data_1"))
+  filter(dataset %in% c("main_data"))
 
 # analysis
-df_main_analysis_1 <- analysistools::create_analysis(design = main_svy, 
-                                                     loa = df_main_loa, sm_separator = "/")
-
-# loa break2
-df_main_loa <- all_loa_msna %>% 
-  filter(dataset %in% c("main_data_2"))
-
-# analysis
-df_main_analysis_2 <- analysistools::create_analysis(design = main_svy, 
-                                                     loa = df_main_loa, sm_separator = "/")
-
-# loa break3
-df_main_loa <- all_loa_msna %>% 
-  filter(dataset %in% c("main_data_3"))
-
-# analysis
-df_main_analysis_3 <- analysistools::create_analysis(design = main_svy, 
-                                                     loa = df_main_loa, sm_separator = "/")
-
-# loa break4
-df_main_loa <- all_loa_msna %>% 
-  filter(dataset %in% c("main_data_4"))
-
-# analysis
-df_main_analysis_4 <- analysistools::create_analysis(design = main_svy, 
-                                                     loa = df_main_loa, sm_separator = "/")
-
-# loa break5
-df_main_loa <- all_loa_msna %>% 
-  filter(dataset %in% c("main_data_5"))
-
-# analysis
-df_main_analysis_5 <- analysistools::create_analysis(design = main_svy, 
-                                                     loa = df_main_loa, sm_separator = "/")
+df_main_analysis<- analysistools::create_analysis(design = main_svy, 
+                                                   loa = df_main_loa, sm_separator = "/")
 
 # analysis - roster -----------------------------------------------------------
 # roster
-df_roster <- df_clean_loop_roster #df_clean_loop_roster_with_composites
+df_roster <- df_clean_loop_roster 
 
 # survey object
 roster_svy <- as_survey(.data = df_roster)
@@ -247,7 +214,7 @@ df_hazardc_loa <- all_loa_msna %>%
 
 # analysis
 df_hazardc_analysis <- analysistools::create_analysis(design = hazardc_svy, 
-                                                      loa = df_hazardc_loa, sm_separator = "/")
+                                                     loa = df_hazardc_loa, sm_separator = "/")
 
 # loops analysis - hazardt ----------------------------------------------------
 # hazard typ
@@ -268,17 +235,14 @@ df_hazardt_analysis <- analysistools::create_analysis(design = hazardt_svy,
 
 # combine the tables
 
-df_combined_tables <- bind_rows(df_main_analysis1$results_table,
-                                df_main_analysis2$results_table,
-                                df_main_analysis3$results_table,
+df_combined_tables <- bind_rows(df_main_analysis$results_table,
                                 df_roster_analysis$results_table,
                                 df_education_analysis$results_table,
                                 df_health_analysis$results_table,
                                 df_nutrition_analysis$results_table,
                                 df_civil_analysis$results_table,
                                 df_hazardc_analysis$results_table,
-                                df_hazardt_analysis$results_table
-)
+                                df_hazardt_analysis$results_table)
 
 df_analysis_table <- presentresults::create_table_variable_x_group(results_table = df_combined_tables) %>% 
   filter(!(analysis_type %in% c("prop_select_one", "prop_select_multiple") & (is.na(analysis_var_value) | analysis_var_value %in% c("NA"))))
@@ -287,37 +251,4 @@ presentresults::create_xlsx_variable_x_group(table_group_x_variable = df_analysi
                                              file_path = paste0("outputs/", butteR::date_file_prefix(), 
                                                                 "_ETH2403_MSNA_analysis_tables.xlsx"),
                                              table_sheet_name = "msna", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_main_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_main.xlsx"),
-                                             table_sheet_name = "msna_main", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_roster_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_roster.xlsx"),
-                                             table_sheet_name = "msna_roster", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_education_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_educ.xlsx"),
-                                             table_sheet_name = "msna_educ", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_health_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_health.xlsx"),
-                                             table_sheet_name = "msna_health", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_nutrition_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_nutrition.xlsx"),
-                                             table_sheet_name = "msna_nutrition", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_civil_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_civil.xlsx"),
-                                             table_sheet_name = "msna_civil", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_hazardc_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_hazardc.xlsx"),
-                                             table_sheet_name = "msna_hazardc", overwrite = TRUE)
-
-presentresults::create_xlsx_variable_x_group(table_group_x_variable = presentresults::create_table_variable_x_group(results_table = df_hazardt_analysis$results_table),
-                                             file_path = paste0("outputs/", butteR::date_file_prefix(), "_analysis_tables_ETH2403_MSNA_hazardt.xlsx"),
-                                             table_sheet_name = "msna_hazardt", overwrite = TRUE)
-
 ###############################################################################                                             
